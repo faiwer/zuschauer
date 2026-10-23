@@ -1,5 +1,6 @@
 use tokio::time::{MissedTickBehavior, interval};
 
+use crate::alerts::{Observation, observe};
 use crate::config::Metric;
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::store;
@@ -31,5 +32,8 @@ pub async fn run(config: &'static Metric) {
             usage.used >> 20,
             usage.total >> 20
         );
+        if let Some(alert) = &config.alert {
+            observe(alert, Observation::Value(percent));
+        }
     }
 }

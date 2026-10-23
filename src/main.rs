@@ -1,7 +1,9 @@
+mod alerts;
 mod collect;
 mod config;
 mod http;
 mod model;
+mod notify;
 mod store;
 mod web;
 
@@ -51,6 +53,7 @@ fn main() -> ExitCode {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(config: &'static config::Config) -> ExitCode {
+    notify::spawn(config);
     collect::spawn(config);
     match web::serve(config).await {
         Ok(()) => ExitCode::SUCCESS,

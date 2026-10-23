@@ -32,7 +32,13 @@ pub struct Response {
 /// Reads up to `max` bytes until the server closes the connection.
 pub async fn read_all<S: AsyncRead + Unpin>(stream: S, max: u64) -> io::Result<Response> {
     let mut raw = Vec::new();
-    stream.take(max).read_to_end(&mut raw).await?;
+    match stream.take(max).read_to_end(&mut raw).await {
+        Ok(_) => {}
+        // Many TLS servers close without a `close_notify`, which rustls
+        // reports as an unexpected EOF after the response has fully arrived.
+        Err(e) if e.kind() == io::ErrorKind::UnexpectedEof && !raw.is_empty() => {}
+        Err(e) => return Err(e),
+    }
     parse(&raw)
 }
 

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use tokio::task::spawn_blocking;
 use tokio::time::{MissedTickBehavior, interval};
 
+use crate::alerts::{Observation, observe};
 use crate::config::Sensor;
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::store;
@@ -34,6 +35,9 @@ pub async fn run(sensor: &'static Sensor, path: PathBuf) {
                 store.set_error(entity.clone(), None);
                 drop(store);
                 eprintln!("temperature {}: {celsius:.1}C", sensor.name);
+                if let Some(alert) = &sensor.alert {
+                    observe(alert, Observation::Value(celsius));
+                }
             }
             Err(e) => {
                 eprintln!("temperature {}: {e}", sensor.name);

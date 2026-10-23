@@ -37,6 +37,7 @@ mod tests {
             timeout: Duration::from_secs(10),
             expect_code,
             content_type: content_type.map(str::to_owned),
+            alert: None,
         }
     }
 

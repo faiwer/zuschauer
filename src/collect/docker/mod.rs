@@ -7,8 +7,10 @@
 //! - `cgroup`: pure cgroup parsers
 //! - `cpu`: CPU % between two readings
 //! - `api`: HTTP over the Docker/Podman unix socket
+//! - `apps`: alerts of the containers apps list
 
 mod api;
+mod apps;
 #[cfg(any(target_os = "linux", test))]
 mod cgroup;
 mod cpu;

@@ -35,12 +35,13 @@ pub(super) struct Tracker {
 }
 
 impl Tracker {
-    pub async fn tick(&mut self, api: Option<&Api>) {
+    /// `false` when containers couldn't be listed, so nothing was updated.
+    pub async fn tick(&mut self, api: Option<&Api>) -> bool {
         let snapshot = match read(api).await {
             Ok(snapshot) => snapshot,
             Err(e) => {
                 eprintln!("docker: {e}");
-                return;
+                return false;
             }
         };
 
@@ -57,6 +58,7 @@ impl Tracker {
         self.mark_gone(&present);
         self.present = present;
         self.forget_all_but(&ids);
+        true
     }
 
     /// `None` for a container's first reading: there's nothing to diff yet.

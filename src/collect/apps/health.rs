@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use tokio::time::{MissedTickBehavior, interval, timeout};
 
+use crate::alerts::{Observation, observe};
 use crate::config::{App, HealthCheck};
 use crate::http::{describe, get_head};
 use crate::model::{EntityId, MetricKind, Sample};
@@ -30,7 +31,14 @@ pub async fn run(app: &'static App, check: &'static HealthCheck) {
         if let Err(error) = &outcome {
             eprintln!("app {label}: down, {error}");
         }
+        let observation = match &outcome {
+            Ok(()) => Observation::Fine,
+            Err(error) => Observation::Problem(error.clone()),
+        };
         status = Some(record(&entity, status, outcome));
+        if let Some(alert) = &check.alert {
+            observe(alert, observation);
+        }
     }
 }
 

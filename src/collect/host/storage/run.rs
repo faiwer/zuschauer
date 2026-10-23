@@ -3,6 +3,7 @@ use std::io;
 use tokio::task::spawn_blocking;
 use tokio::time::{MissedTickBehavior, interval};
 
+use crate::alerts::{Observation, observe};
 use crate::config::Mount;
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::store;
@@ -43,5 +44,8 @@ pub async fn run(mount: &'static Mount) {
             mount.path.display(),
             (blocks.available * blocks.block_size) >> 30
         );
+        if let Some(alert) = &mount.metric.alert {
+            observe(alert, Observation::Value(percent));
+        }
     }
 }

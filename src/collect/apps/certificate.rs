@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval, timeout};
 
-use crate::config::{App, CertificatesConfig};
+use crate::alerts::{Observation, observe};
+use crate::config::{App, AppCertificate, CertificatesConfig};
 use crate::http::{HostPort, certificate, describe};
 use crate::model::{EntityId, Timestamp, now};
 use crate::store::store;
@@ -14,9 +15,10 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub async fn run(
     app: &'static App,
-    target: &'static HostPort,
+    watched: &'static AppCertificate,
     config: &'static CertificatesConfig,
 ) {
+    let target = &watched.target;
     let entity = EntityId::Certificate {
         app: app.id.clone(),
         host: target.to_string(),
@@ -28,23 +30,27 @@ pub async fn run(
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
     loop {
         ticker.tick().await;
+        let mut observation = Observation::Fine;
         let outcome = expires_at(target).await.map(|at| {
             let left = Duration::from_secs(at.saturating_sub(now()).into());
+            let days = left.as_secs() / 86400;
             let soon = if left < config.warn_before {
+                observation = Observation::Problem(format!("expires in {days}d"));
                 ", expiring soon"
             } else {
                 ""
             };
-            eprintln!(
-                "certificate {label}: expires in {}d{soon}",
-                left.as_secs() / 86400
-            );
+            eprintln!("certificate {label}: expires in {days}d{soon}");
             store().set_expires_at(entity.clone(), at);
         });
         if let Err(error) = &outcome {
             eprintln!("certificate {label}: {error}");
+            observation = Observation::Problem(error.clone());
         }
         status = Some(record(&entity, status, outcome));
+        if let Some(alert) = &watched.alert {
+            observe(alert, observation);
+        }
     }
 }
 

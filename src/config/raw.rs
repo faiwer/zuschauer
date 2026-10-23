@@ -7,19 +7,38 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use crate::http::{HostPort, Url};
+use crate::http::Url;
 
-use super::types::{AlertRule, Celsius, Dur};
+use super::types::{Celsius, Dur, Percent, Severity};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RawConfig {
     pub listen: SocketAddr,
+    /// Names this machine in notifications.
+    pub context: Option<String>,
     pub host: Option<RawHost>,
     pub docker: Option<RawDocker>,
     pub certificates: Option<RawCertificates>,
     /// Keyed by app ID.
     pub apps: Option<BTreeMap<String, RawApp>>,
+    /// Keyed by name.
+    pub notifiers: Option<BTreeMap<String, RawNotifier>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum RawNotifier {
+    Ntfy(RawNtfy),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawNtfy {
+    pub topic: String,
+    pub token: Option<String>,
+    /// The ntfy server.
+    pub address: Option<Url>,
 }
 
 /// Shared by all apps' `certificates`.
@@ -34,10 +53,18 @@ pub struct RawCertificates {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RawApp {
     pub name: Option<String>,
-    /// Names as the Containers table shows them.
-    pub containers: Option<Vec<String>>,
+    /// Keyed by name, as the Containers table shows them.
+    pub containers: Option<BTreeMap<String, RawWatched>>,
     pub health_checks: Option<Vec<RawHealthCheck>>,
-    pub certificates: Option<Vec<HostPort>>,
+    /// Keyed by `host[:port]`.
+    pub certificates: Option<BTreeMap<String, RawWatched>>,
+}
+
+/// Something that's either fine or not, with nothing else to configure.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawWatched {
+    pub alert: Option<RawAlert>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,6 +76,7 @@ pub struct RawHealthCheck {
     pub timeout: Option<Dur>,
     pub expect_code: Option<u16>,
     pub content_type: Option<String>,
+    pub alert: Option<RawAlert>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -74,7 +102,7 @@ pub struct RawHost {
 pub struct RawSensor {
     pub name: Option<String>,
     pub every: Option<Dur>,
-    pub alert: Option<AlertRule<Celsius>>,
+    pub alert: Option<RawThresholdAlert<Celsius>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -90,5 +118,30 @@ pub struct RawStorage {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RawMetric {
     pub every: Option<Dur>,
-    pub alert: Option<AlertRule>,
+    pub alert: Option<RawThresholdAlert<Percent>>,
+}
+
+/// Fires when a value stays above `above` for at least `for`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawThresholdAlert<T> {
+    pub above: T,
+    #[serde(rename = "for")]
+    pub duration: Dur,
+    /// Once fired, the alert resolves only below this. Defaults to `above`.
+    pub resolve_below: Option<T>,
+    pub severity: Option<Severity>,
+    pub id: Option<String>,
+    pub depends_on: Option<Vec<String>>,
+}
+
+/// Fires when something stays down, gone or expiring for at least `for`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawAlert {
+    #[serde(rename = "for")]
+    pub duration: Option<Dur>,
+    pub severity: Option<Severity>,
+    pub id: Option<String>,
+    pub depends_on: Option<Vec<String>>,
 }

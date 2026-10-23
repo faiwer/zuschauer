@@ -3,6 +3,7 @@
 use axum::extract::State;
 use maud::{DOCTYPE, Markup, html};
 
+use crate::alerts;
 use crate::config::{App, Config};
 use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp, now};
 use crate::store::{Entity, store};
@@ -44,6 +45,7 @@ struct AppView {
 }
 
 pub async fn index(State(config): State<&'static Config>) -> Markup {
+    let firing = alerts::firing();
     let host = host_rows(config);
     let containers = container_rows();
     let apps: Vec<AppView> = config.apps.iter().map(app_view).collect();
@@ -59,6 +61,23 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                 title { "Zuschauer" }
             }
             body {
+                @if config.alerts().next().is_some() {
+                    h1 { "Alerts" }
+                    @if firing.is_empty() {
+                        p { "none firing" }
+                    } @else {
+                        table {
+                            @for alert in &firing {
+                                tr {
+                                    th { (alert.alert.label) }
+                                    td { strong { (alert.alert.severity) } }
+                                    td { (alert.detail) }
+                                    td { "for " (ago(alert.since)) }
+                                }
+                            }
+                        }
+                    }
+                }
                 h1 { "Host" }
                 table {
                     @for row in &host {
@@ -239,13 +258,13 @@ fn app_view(app: &'static App) -> AppView {
     let containers = app
         .containers
         .iter()
-        .map(|name| container_row(name, store.entity(&EntityId::Container(name.clone()))))
+        .map(|c| container_row(&c.name, store.entity(&EntityId::Container(c.name.clone()))))
         .collect();
     let certificates = app
         .certificates
         .iter()
-        .map(|target| {
-            let host = target.to_string();
+        .map(|watched| {
+            let host = watched.target.to_string();
             let entity = store.entity(&EntityId::Certificate {
                 app: app.id.clone(),
                 host: host.clone(),

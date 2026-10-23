@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval, sleep};
 
+use crate::alerts::{Observation, observe};
 use crate::config::Metric;
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::store;
@@ -39,6 +40,9 @@ pub async fn run(config: &'static Metric) {
         {
             store().push(EntityId::Host, MetricKind::Cpu, Sample::now(percent));
             eprintln!("cpu: {percent:.1}%");
+            if let Some(alert) = &config.alert {
+                observe(alert, Observation::Value(percent));
+            }
         }
         prev = Some(cur);
     }

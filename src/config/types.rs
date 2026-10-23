@@ -26,6 +26,12 @@ impl TryFrom<String> for Percent {
     }
 }
 
+impl From<Percent> for f32 {
+    fn from(percent: Percent) -> Self {
+        percent.0
+    }
+}
+
 impl fmt::Display for Percent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}%", self.0)
@@ -52,6 +58,12 @@ impl TryFrom<String> for Celsius {
             return Err(format!("\"{s}\" is not a possible temperature"));
         }
         Ok(Self(value))
+    }
+}
+
+impl From<Celsius> for f32 {
+    fn from(celsius: Celsius) -> Self {
+        celsius.0
     }
 }
 
@@ -94,13 +106,24 @@ impl fmt::Display for Dur {
     }
 }
 
-/// Fire when a value stays above `above` for at least `for`.
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct AlertRule<T = Percent> {
-    pub above: T,
-    #[serde(rename = "for")]
-    pub duration: Dur,
+/// How loudly a firing alert is announced.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Severity {
+    Critical,
+    #[default]
+    Warning,
+    Info,
+}
+
+impl fmt::Display for Severity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Critical => "critical",
+            Self::Warning => "warning",
+            Self::Info => "info",
+        })
+    }
 }
 
 #[cfg(test)]
