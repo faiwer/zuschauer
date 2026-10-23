@@ -1,6 +1,7 @@
 //! Finds running containers by walking `/sys/fs/cgroup` and reads their CPU
-//! and memory from cgroup files. No API calls: names are resolved separately,
-//! once per new container ID.
+//! and memory from cgroup files. No API calls: Quadlet containers are named
+//! after their systemd unit, others are resolved separately, once per new
+//! container ID.
 
 use std::ffi::OsStr;
 use std::fs;
@@ -8,7 +9,7 @@ use std::io;
 use std::path::Path;
 use std::time::Instant;
 
-use super::cgroup::{container_id, field};
+use super::cgroup::{container_id, field, quadlet_unit};
 use super::reading::{Reading, Snapshot};
 
 const ROOT: &str = "/sys/fs/cgroup";
@@ -39,14 +40,14 @@ fn scan(dir: &Path, depth: usize, out: &mut Vec<Reading>) {
         };
         let path = entry.path();
         if let Some(id) = container_id(name, parent) {
-            out.extend(read_container(&path, id));
+            out.extend(read_container(&path, id, quadlet_unit(name, parent)));
         } else if depth < MAX_DEPTH {
             scan(&path, depth + 1, out);
         }
     }
 }
 
-fn read_container(dir: &Path, id: &str) -> Option<Reading> {
+fn read_container(dir: &Path, id: &str, name: Option<&str>) -> Option<Reading> {
     let at = Instant::now();
     let cpu_usage_usec = field(
         &fs::read_to_string(dir.join("cpu.stat")).ok()?,
@@ -63,7 +64,7 @@ fn read_container(dir: &Path, id: &str) -> Option<Reading> {
     let paused = fs::read_to_string(dir.join("cgroup.freeze")).is_ok_and(|s| s.trim() == "1");
     Some(Reading {
         id: id.to_owned(),
-        name: None,
+        name: name.map(str::to_owned),
         at,
         cpu_usage_usec,
         memory,
