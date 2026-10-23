@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::model::{MetricKind, Sample, Status};
+use crate::model::{MetricKind, Sample, Status, Timestamp};
 
 use super::series::Series;
 
@@ -11,6 +11,8 @@ pub struct Entity {
     status: Option<Status>,
     /// Why the last attempt failed, for entities that can fail.
     error: Option<String>,
+    /// Certificates: when the last one seen expires.
+    expires_at: Option<Timestamp>,
 }
 
 impl Entity {
@@ -26,6 +28,10 @@ impl Entity {
         self.error.as_deref()
     }
 
+    pub fn expires_at(&self) -> Option<Timestamp> {
+        self.expires_at
+    }
+
     pub(super) fn push(&mut self, metric: MetricKind, sample: Sample) {
         self.series.entry(metric).or_default().push(sample);
     }
@@ -36,5 +42,9 @@ impl Entity {
 
     pub(super) fn set_error(&mut self, error: Option<String>) {
         self.error = error;
+    }
+
+    pub(super) fn set_expires_at(&mut self, at: Timestamp) {
+        self.expires_at = Some(at);
     }
 }

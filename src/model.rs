@@ -16,6 +16,11 @@ pub enum EntityId {
         app: String,
         check: String,
     },
+    /// An app's TLS certificate, by app ID and `host[:port]`.
+    Certificate {
+        app: String,
+        host: String,
+    },
 }
 
 /// Which metric of an entity a series holds.

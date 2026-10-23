@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::http::Url;
+use crate::http::{HostPort, Url};
 
 use super::types::{AlertRule, Dur};
 
@@ -15,8 +15,16 @@ pub struct Config {
     pub host: HostConfig,
     /// `None` when containers aren't monitored.
     pub docker: Option<DockerConfig>,
+    pub certificates: CertificatesConfig,
     /// Sorted by ID.
     pub apps: Vec<App>,
+}
+
+#[derive(Debug)]
+pub struct CertificatesConfig {
+    pub every: Duration,
+    /// A certificate expiring sooner than this counts as expiring.
+    pub warn_before: Duration,
 }
 
 #[derive(Debug)]
@@ -26,6 +34,7 @@ pub struct App {
     /// Container names; their data comes from the docker collector.
     pub containers: Vec<String>,
     pub health_checks: Vec<HealthCheck>,
+    pub certificates: Vec<HostPort>,
 }
 
 #[derive(Debug)]
@@ -84,10 +93,20 @@ impl fmt::Display for Config {
             }
             None => writeln!(f, "docker: off")?,
         }
+        writeln!(
+            f,
+            "certificates: every {}, warn before {}",
+            Dur::from(self.certificates.every),
+            Dur::from(self.certificates.warn_before),
+        )?;
         for app in &self.apps {
             write!(f, "apps.{}: {}", app.id, app.name)?;
             if !app.containers.is_empty() {
                 write!(f, ", containers {}", app.containers.join(", "))?;
+            }
+            if !app.certificates.is_empty() {
+                let hosts: Vec<_> = app.certificates.iter().map(HostPort::to_string).collect();
+                write!(f, ", certificates {}", hosts.join(", "))?;
             }
             writeln!(f)?;
             for check in &app.health_checks {

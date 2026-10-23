@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use crate::http::Url;
+use crate::http::{HostPort, Url};
 
 use super::types::{AlertRule, Dur};
 
@@ -17,8 +17,17 @@ pub struct RawConfig {
     pub listen: SocketAddr,
     pub host: Option<RawHost>,
     pub docker: Option<RawDocker>,
+    pub certificates: Option<RawCertificates>,
     /// Keyed by app ID.
     pub apps: Option<BTreeMap<String, RawApp>>,
+}
+
+/// Shared by all apps' `certificates`.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawCertificates {
+    pub every: Option<Dur>,
+    pub warn_before: Option<Dur>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,6 +37,7 @@ pub struct RawApp {
     /// Names as the Containers table shows them.
     pub containers: Option<Vec<String>>,
     pub health_checks: Option<Vec<RawHealthCheck>>,
+    pub certificates: Option<Vec<HostPort>>,
 }
 
 #[derive(Debug, Deserialize)]

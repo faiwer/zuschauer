@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::model::{EntityId, MetricKind, Sample, Status};
+use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp};
 
 use super::entity::Entity;
 use super::series::Series;
@@ -30,6 +30,10 @@ impl Store {
 
     pub fn set_error(&mut self, entity: EntityId, error: Option<String>) {
         self.entities.entry(entity).or_default().set_error(error);
+    }
+
+    pub fn set_expires_at(&mut self, entity: EntityId, at: Timestamp) {
+        self.entities.entry(entity).or_default().set_expires_at(at);
     }
 
     pub fn entity(&self, entity: &EntityId) -> Option<&Entity> {

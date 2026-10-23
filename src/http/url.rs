@@ -34,16 +34,53 @@ pub struct Url {
 impl Url {
     /// The `Host` header value: the port is left out when it's the default.
     pub fn authority(&self) -> String {
-        let host = if self.host.contains(':') {
-            format!("[{}]", self.host)
-        } else {
-            self.host.clone()
-        };
-        if self.port == self.scheme.default_port() {
-            host
-        } else {
-            format!("{host}:{}", self.port)
+        authority(&self.host, self.port, self.scheme.default_port())
+    }
+}
+
+fn authority(host: &str, port: u16, default_port: u16) -> String {
+    let host = if host.contains(':') {
+        format!("[{host}]")
+    } else {
+        host.to_owned()
+    };
+    if port == default_port {
+        host
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+/// A TLS endpoint written as `host` (port 443) or `host:port`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "String")]
+pub struct HostPort {
+    pub host: String,
+    pub port: u16,
+}
+
+impl TryFrom<String> for HostPort {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let error = |reason| format!("\"{s}\" is not a valid host: {reason}");
+        if s.contains(['/', '?']) {
+            return Err(error(
+                "expected host or host:port, without a scheme or path",
+            ));
         }
+        let url = parse(&format!("https://{s}")).map_err(error)?;
+        Ok(Self {
+            host: url.host,
+            port: url.port,
+        })
+    }
+}
+
+impl fmt::Display for HostPort {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let default_port = Scheme::Https.default_port();
+        write!(f, "{}", authority(&self.host, self.port, default_port))
     }
 }
 
@@ -172,6 +209,28 @@ mod tests {
             url("https://example.com").to_string(),
             "https://example.com/"
         );
+    }
+
+    #[test]
+    fn parses_host_ports() {
+        let parse = |s: &str| HostPort::try_from(s.to_owned());
+        let hp = parse("Example.com").unwrap();
+        assert_eq!((hp.host.as_str(), hp.port), ("example.com", 443));
+        assert_eq!(hp.to_string(), "example.com");
+        let hp = parse("example.com:8443").unwrap();
+        assert_eq!(
+            (hp.port, hp.to_string().as_str()),
+            (8443, "example.com:8443")
+        );
+        for bad in [
+            "https://example.com",
+            "example.com/",
+            "example.com:0",
+            "",
+            "a b",
+        ] {
+            assert!(parse(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

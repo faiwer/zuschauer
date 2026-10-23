@@ -5,8 +5,10 @@
 use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
-use super::raw::{RawApp, RawConfig, RawHealthCheck, RawMetric};
-use super::resolved::{App, Config, DockerConfig, HealthCheck, HostConfig, Metric, Mount};
+use super::raw::{RawApp, RawCertificates, RawConfig, RawHealthCheck, RawMetric};
+use super::resolved::{
+    App, CertificatesConfig, Config, DockerConfig, HealthCheck, HostConfig, Metric, Mount,
+};
 use super::types::Dur;
 
 const DEFAULT_EVERY: Duration = Duration::from_secs(60);
@@ -14,6 +16,9 @@ const MIN_EVERY: Duration = Duration::from_secs(1);
 /// Capped at the check's `every` when that's shorter.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_EXPECT_CODE: u16 = 200;
+/// Certificates change rarely; this only has to catch a renewal that stopped.
+const DEFAULT_CERTIFICATES_EVERY: Duration = Duration::from_secs(6 * 3600);
+const DEFAULT_WARN_BEFORE: Duration = Duration::from_secs(14 * 86400);
 
 pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
     let mut errors = Vec::new();
@@ -61,6 +66,7 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
         }
     });
 
+    let certificates = certificates(raw.certificates.unwrap_or_default(), &mut errors);
     let apps = apps(raw.apps.unwrap_or_default(), docker.is_some(), &mut errors);
 
     if !errors.is_empty() {
@@ -74,8 +80,25 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
             storage,
         },
         docker,
+        certificates,
         apps,
     })
+}
+
+fn certificates(raw: RawCertificates, errors: &mut Vec<String>) -> CertificatesConfig {
+    let warn_before = raw.warn_before.map_or(DEFAULT_WARN_BEFORE, Dur::get);
+    if warn_before.is_zero() {
+        errors.push("certificates.warnBefore: must be more than 0".to_owned());
+    }
+    CertificatesConfig {
+        every: every(
+            "certificates",
+            raw.every,
+            DEFAULT_CERTIFICATES_EVERY,
+            errors,
+        ),
+        warn_before,
+    }
 }
 
 fn apps(raw: BTreeMap<String, RawApp>, docker: bool, errors: &mut Vec<String>) -> Vec<App> {
@@ -105,10 +128,19 @@ fn app(id: String, raw: RawApp, docker: bool, errors: &mut Vec<String>) -> App {
         }
     }
 
+    let certificates = raw.certificates.unwrap_or_default();
+    for (i, host) in certificates.iter().enumerate() {
+        if certificates[..i].contains(host) {
+            errors.push(format!(
+                "{at}.certificates[{i}]: \"{host}\" is listed twice"
+            ));
+        }
+    }
+
     let raw_checks = raw.health_checks.unwrap_or_default();
-    if raw_checks.is_empty() && containers.is_empty() {
+    if raw_checks.is_empty() && containers.is_empty() && certificates.is_empty() {
         errors.push(format!(
-            "{at}: nothing to monitor, add healthChecks or containers"
+            "{at}: nothing to monitor, add healthChecks, containers or certificates"
         ));
     }
     let mut names = HashSet::new();
@@ -132,6 +164,7 @@ fn app(id: String, raw: RawApp, docker: bool, errors: &mut Vec<String>) -> App {
         id,
         containers,
         health_checks,
+        certificates,
     }
 }
 
@@ -320,6 +353,30 @@ mod tests {
         .unwrap_err();
         // No docker section, listed twice, empty name.
         assert_eq!(errors.len(), 3, "{errors:#?}");
+    }
+
+    #[test]
+    fn checks_certificates() {
+        let config = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "apps": { "site": { "certificates": ["example.com", "example.com:8443"] } }
+            }"#,
+        ))
+        .unwrap();
+        assert_eq!(config.certificates.every, DEFAULT_CERTIFICATES_EVERY);
+        assert_eq!(config.apps[0].certificates.len(), 2);
+
+        let errors = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "certificates": { "warnBefore": "0s" },
+                "apps": { "site": { "certificates": ["example.com", "example.com:443"] } }
+            }"#,
+        ))
+        .unwrap_err();
+        // warnBefore of 0, the same host twice (443 is the default).
+        assert_eq!(errors.len(), 2, "{errors:#?}");
     }
 
     #[test]

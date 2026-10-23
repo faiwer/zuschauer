@@ -22,16 +22,27 @@ struct CheckRow {
     error: Option<String>,
 }
 
+struct CertificateRow {
+    host: String,
+    status: Option<Status>,
+    expires_at: Option<Timestamp>,
+    error: Option<String>,
+}
+
 struct AppView {
     name: &'static str,
     checks: Vec<CheckRow>,
     containers: Vec<ContainerRow>,
+    certificates: Vec<CertificateRow>,
 }
 
 pub async fn index(State(config): State<&'static Config>) -> Markup {
     let host = host_rows(config);
     let containers = container_rows();
     let apps: Vec<AppView> = config.apps.iter().map(app_view).collect();
+    let warn_before =
+        Timestamp::try_from(config.certificates.warn_before.as_secs()).unwrap_or(Timestamp::MAX);
+    let warn_after = now().saturating_add(warn_before);
 
     html! {
         (DOCTYPE)
@@ -86,6 +97,30 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                             }
                             @for row in &app.containers {
                                 tr { (container_cells(row)) }
+                            }
+                            @for row in &app.certificates {
+                                tr {
+                                    th { (row.host) }
+                                    @match (row.status, row.expires_at) {
+                                        (Some(Status::Up { .. }), Some(at)) if at < warn_after => {
+                                            td { strong { "expiring" } }
+                                            td { "in " (until(at)) }
+                                        }
+                                        (Some(Status::Up { .. }), Some(at)) => {
+                                            td { "valid" }
+                                            td { "expires in " (until(at)) }
+                                        }
+                                        (Some(Status::Down { since }), _) => {
+                                            td { "failing " (ago(since)) }
+                                            td { "—" }
+                                        }
+                                        _ => {
+                                            td { "pending" }
+                                            td { "—" }
+                                        }
+                                    }
+                                    td { (row.error.as_deref().unwrap_or_default()) }
+                                }
                             }
                         }
                     }
@@ -186,10 +221,28 @@ fn app_view(app: &'static App) -> AppView {
         .iter()
         .map(|name| container_row(name, store.entity(&EntityId::Container(name.clone()))))
         .collect();
+    let certificates = app
+        .certificates
+        .iter()
+        .map(|target| {
+            let host = target.to_string();
+            let entity = store.entity(&EntityId::Certificate {
+                app: app.id.clone(),
+                host: host.clone(),
+            });
+            CertificateRow {
+                host,
+                status: entity.and_then(Entity::status),
+                expires_at: entity.and_then(Entity::expires_at),
+                error: entity.and_then(Entity::error).map(str::to_owned),
+            }
+        })
+        .collect();
     AppView {
         name: &app.name,
         checks,
         containers,
+        certificates,
     }
 }
 
@@ -210,7 +263,15 @@ fn mib(bytes: f32) -> String {
 
 /// Compact age: `42s`, `12m`, `5h`, `3d`.
 fn ago(at: Timestamp) -> String {
-    let seconds = now().saturating_sub(at);
+    span(now().saturating_sub(at))
+}
+
+/// Like `ago`, for the future.
+fn until(at: Timestamp) -> String {
+    span(at.saturating_sub(now()))
+}
+
+fn span(seconds: Timestamp) -> String {
     match seconds {
         0..120 => format!("{seconds}s"),
         120..7200 => format!("{}m", seconds / 60),
