@@ -61,7 +61,7 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
         }
     });
 
-    let apps = apps(raw.apps.unwrap_or_default(), &mut errors);
+    let apps = apps(raw.apps.unwrap_or_default(), docker.is_some(), &mut errors);
 
     if !errors.is_empty() {
         return Err(errors);
@@ -78,39 +78,61 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
     })
 }
 
-fn apps(raw: BTreeMap<String, RawApp>, errors: &mut Vec<String>) -> Vec<App> {
+fn apps(raw: BTreeMap<String, RawApp>, docker: bool, errors: &mut Vec<String>) -> Vec<App> {
     raw.into_iter()
-        .map(|(id, raw_app)| {
-            let at = format!("apps.{id}");
-            if id.is_empty() {
-                errors.push("apps: an app ID can't be empty".to_owned());
-            }
-            let raw_checks = raw_app.health_checks.unwrap_or_default();
-            if raw_checks.is_empty() {
-                errors.push(format!("{at}: nothing to monitor, add healthChecks"));
-            }
-            let mut names = HashSet::new();
-            let health_checks = raw_checks
-                .into_iter()
-                .enumerate()
-                .map(|(i, raw_check)| {
-                    let check = health_check(&format!("{at}.healthChecks[{i}]"), raw_check, errors);
-                    if !names.insert(check.name.clone()) {
-                        errors.push(format!(
-                            "{at}.healthChecks[{i}]: another check is also named \"{}\", give one a \"name\"",
-                            check.name
-                        ));
-                    }
-                    check
-                })
-                .collect();
-            App {
-                name: raw_app.name.unwrap_or_else(|| id.clone()),
-                id,
-                health_checks,
-            }
-        })
+        .map(|(id, raw_app)| app(id, raw_app, docker, errors))
         .collect()
+}
+
+fn app(id: String, raw: RawApp, docker: bool, errors: &mut Vec<String>) -> App {
+    let at = format!("apps.{id}");
+    if id.is_empty() {
+        errors.push("apps: an app ID can't be empty".to_owned());
+    }
+
+    let containers = raw.containers.unwrap_or_default();
+    if !containers.is_empty() && !docker {
+        errors.push(format!(
+            "{at}.containers: containers aren't monitored, add a \"docker\" section"
+        ));
+    }
+    let mut seen = HashSet::new();
+    for (i, name) in containers.iter().enumerate() {
+        if name.is_empty() {
+            errors.push(format!("{at}.containers[{i}]: can't be empty"));
+        } else if !seen.insert(name) {
+            errors.push(format!("{at}.containers[{i}]: \"{name}\" is listed twice"));
+        }
+    }
+
+    let raw_checks = raw.health_checks.unwrap_or_default();
+    if raw_checks.is_empty() && containers.is_empty() {
+        errors.push(format!(
+            "{at}: nothing to monitor, add healthChecks or containers"
+        ));
+    }
+    let mut names = HashSet::new();
+    let health_checks = raw_checks
+        .into_iter()
+        .enumerate()
+        .map(|(i, raw_check)| {
+            let check = health_check(&format!("{at}.healthChecks[{i}]"), raw_check, errors);
+            if !names.insert(check.name.clone()) {
+                errors.push(format!(
+                    "{at}.healthChecks[{i}]: another check is also named \"{}\", give one a \"name\"",
+                    check.name
+                ));
+            }
+            check
+        })
+        .collect();
+
+    App {
+        name: raw.name.unwrap_or_else(|| id.clone()),
+        id,
+        containers,
+        health_checks,
+    }
 }
 
 fn health_check(at: &str, raw: RawHealthCheck, errors: &mut Vec<String>) -> HealthCheck {
@@ -275,6 +297,29 @@ mod tests {
         // Nothing to monitor, timeout > every, duplicate name, expectCode,
         // empty contentType.
         assert_eq!(errors.len(), 5, "{errors:#?}");
+    }
+
+    #[test]
+    fn checks_app_containers() {
+        let ok = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "docker": {},
+                "apps": { "db": { "containers": ["db-1"] } }
+            }"#,
+        ))
+        .unwrap();
+        assert_eq!(ok.apps[0].containers, ["db-1"]);
+
+        let errors = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "apps": { "db": { "containers": ["db-1", "db-1", ""] } }
+            }"#,
+        ))
+        .unwrap_err();
+        // No docker section, listed twice, empty name.
+        assert_eq!(errors.len(), 3, "{errors:#?}");
     }
 
     #[test]

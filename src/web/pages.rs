@@ -3,29 +3,35 @@
 use axum::extract::State;
 use maud::{DOCTYPE, Markup, html};
 
-use crate::config::Config;
+use crate::config::{App, Config};
 use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp, now};
-use crate::store::store;
+use crate::store::{Entity, store};
 
 struct ContainerRow {
     name: String,
+    /// `None` when it hasn't been seen since start.
     status: Option<Status>,
     cpu: Option<Sample>,
     memory: Option<Sample>,
 }
 
 struct CheckRow {
-    app_name: &'static str,
-    check_name: &'static str,
+    name: &'static str,
     status: Option<Status>,
     latency: Option<Sample>,
     error: Option<String>,
 }
 
+struct AppView {
+    name: &'static str,
+    checks: Vec<CheckRow>,
+    containers: Vec<ContainerRow>,
+}
+
 pub async fn index(State(config): State<&'static Config>) -> Markup {
     let host = host_rows(config);
     let containers = container_rows();
-    let checks = check_rows(config);
+    let apps: Vec<AppView> = config.apps.iter().map(app_view).collect();
 
     html! {
         (DOCTYPE)
@@ -56,38 +62,52 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                         p { "none running" }
                     } @else {
                         table {
-                            @for row in containers {
+                            @for row in &containers {
+                                tr { (container_cells(row)) }
+                            }
+                        }
+                    }
+                }
+                @if !apps.is_empty() {
+                    h1 { "Apps" }
+                    @for app in &apps {
+                        h2 { (app.name) }
+                        table {
+                            @for row in &app.checks {
                                 tr {
                                     th { (row.name) }
                                     td { (status(row.status)) }
-                                    @if matches!(row.status, Some(Status::Gone { .. })) {
-                                        td colspan="2" { "—" }
-                                    } @else {
-                                        td { (row.cpu.map_or("—".to_owned(), |s| format!("CPU {:.1}%", s.value))) }
-                                        td { (row.memory.map_or("—".to_owned(), |s| format!("mem {}", mib(s.value)))) }
+                                    @match (row.status, row.latency) {
+                                        (Some(Status::Up { .. }), Some(s)) => td { "responded in " (format!("{:.0}", s.value)) " ms" },
+                                        _ => td { "—" },
                                     }
+                                    td { (row.error.as_deref().unwrap_or_default()) }
                                 }
+                            }
+                            @for row in &app.containers {
+                                tr { (container_cells(row)) }
                             }
                         }
                     }
                 }
-                @if !checks.is_empty() {
-                    h1 { "Apps" }
-                    table {
-                        @for row in checks {
-                            tr {
-                                th { (row.app_name) }
-                                td { (row.check_name) }
-                                td { (status(row.status)) }
-                                @match (row.status, row.latency) {
-                                    (Some(Status::Up { .. }), Some(s)) => td { "responded in " (format!("{:.0}", s.value)) " ms" },
-                                    _ => td { "—" },
-                                }
-                                td { (row.error.unwrap_or_default()) }
-                            }
-                        }
-                    }
-                }
+            }
+        }
+    }
+}
+
+fn container_cells(row: &ContainerRow) -> Markup {
+    html! {
+        th { (row.name) }
+        @match row.status {
+            None => td colspan="3" { "not seen" },
+            Some(Status::Gone { .. }) => {
+                td { (status(row.status)) }
+                td colspan="2" { "—" }
+            }
+            Some(_) => {
+                td { (status(row.status)) }
+                td { (row.cpu.map_or("—".to_owned(), |s| format!("CPU {:.1}%", s.value))) }
+                td { (row.memory.map_or("—".to_owned(), |s| format!("mem {}", mib(s.value)))) }
             }
         }
     }
@@ -122,41 +142,55 @@ fn container_rows() -> Vec<ContainerRow> {
     store()
         .entities()
         .filter_map(|(id, entity)| match id {
-            EntityId::Container(name) => Some(ContainerRow {
-                name: name.clone(),
-                status: entity.status(),
-                cpu: entity.series(MetricKind::Cpu).and_then(|s| s.latest()),
-                memory: entity
-                    .series(MetricKind::MemoryBytes)
-                    .and_then(|s| s.latest()),
-            }),
+            EntityId::Container(name) => Some(container_row(name, Some(entity))),
             _ => None,
         })
         .collect()
 }
 
-fn check_rows(config: &'static Config) -> Vec<CheckRow> {
+fn container_row(name: &str, entity: Option<&Entity>) -> ContainerRow {
+    ContainerRow {
+        name: name.to_owned(),
+        status: entity.and_then(Entity::status),
+        cpu: entity
+            .and_then(|e| e.series(MetricKind::Cpu))
+            .and_then(|s| s.latest()),
+        memory: entity
+            .and_then(|e| e.series(MetricKind::MemoryBytes))
+            .and_then(|s| s.latest()),
+    }
+}
+
+fn app_view(app: &'static App) -> AppView {
     let store = store();
-    config
-        .apps
+    let checks = app
+        .health_checks
         .iter()
-        .flat_map(|app| app.health_checks.iter().map(move |check| (app, check)))
-        .map(|(app, check)| {
+        .map(|check| {
             let entity = store.entity(&EntityId::HealthCheck {
                 app: app.id.clone(),
                 check: check.name.clone(),
             });
             CheckRow {
-                app_name: &app.name,
-                check_name: &check.name,
-                status: entity.and_then(|e| e.status()),
+                name: &check.name,
+                status: entity.and_then(Entity::status),
                 latency: entity
                     .and_then(|e| e.series(MetricKind::Latency))
                     .and_then(|s| s.latest()),
-                error: entity.and_then(|e| e.error()).map(str::to_owned),
+                error: entity.and_then(Entity::error).map(str::to_owned),
             }
         })
-        .collect()
+        .collect();
+    let containers = app
+        .containers
+        .iter()
+        .map(|name| container_row(name, store.entity(&EntityId::Container(name.clone()))))
+        .collect();
+    AppView {
+        name: &app.name,
+        checks,
+        containers,
+    }
 }
 
 fn status(status: Option<Status>) -> String {

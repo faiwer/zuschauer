@@ -25,6 +25,8 @@ pub struct RawConfig {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RawApp {
     pub name: Option<String>,
+    /// Names as the Containers table shows them.
+    pub containers: Option<Vec<String>>,
     pub health_checks: Option<Vec<RawHealthCheck>>,
 }
 

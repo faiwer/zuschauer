@@ -23,6 +23,8 @@ pub struct Config {
 pub struct App {
     pub id: String,
     pub name: String,
+    /// Container names; their data comes from the docker collector.
+    pub containers: Vec<String>,
     pub health_checks: Vec<HealthCheck>,
 }
 
@@ -83,7 +85,11 @@ impl fmt::Display for Config {
             None => writeln!(f, "docker: off")?,
         }
         for app in &self.apps {
-            writeln!(f, "apps.{}: {}", app.id, app.name)?;
+            write!(f, "apps.{}: {}", app.id, app.name)?;
+            if !app.containers.is_empty() {
+                write!(f, ", containers {}", app.containers.join(", "))?;
+            }
+            writeln!(f)?;
             for check in &app.health_checks {
                 writeln!(f, "apps.{}.{}: {check}", app.id, check.name)?;
             }
