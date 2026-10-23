@@ -1,23 +1,14 @@
 //! Page handlers.
 
+use axum::extract::State;
 use maud::{DOCTYPE, Markup, html};
 
+use crate::config::Config;
 use crate::model::{EntityId, MetricKind, Sample, now};
 use crate::store::store;
 
-const HOST_METRICS: [(&str, MetricKind); 2] =
-    [("CPU", MetricKind::Cpu), ("Memory", MetricKind::Memory)];
-
-pub async fn index() -> Markup {
-    let latest = {
-        let store = store();
-        HOST_METRICS.map(|(label, kind)| {
-            let sample = store
-                .series(&EntityId::Host, kind)
-                .and_then(|series| series.latest());
-            (label, sample)
-        })
-    };
+pub async fn index(State(config): State<&'static Config>) -> Markup {
+    let rows = latest_rows(config);
 
     html! {
         (DOCTYPE)
@@ -29,7 +20,7 @@ pub async fn index() -> Markup {
             body {
                 h1 { "Host" }
                 table {
-                    @for (label, sample) in latest {
+                    @for (label, sample) in rows {
                         tr {
                             th { (label) }
                             @match sample {
@@ -45,6 +36,31 @@ pub async fn index() -> Markup {
             }
         }
     }
+}
+
+fn latest_rows(config: &Config) -> Vec<(String, Option<Sample>)> {
+    let mut wanted = vec![
+        ("CPU".to_owned(), EntityId::Host, MetricKind::Cpu),
+        ("Memory".to_owned(), EntityId::Host, MetricKind::Memory),
+    ];
+    for mount in &config.host.storage {
+        wanted.push((
+            format!("Storage {}", mount.path.display()),
+            EntityId::Mount(mount.path.clone()),
+            MetricKind::Storage,
+        ));
+    }
+
+    let store = store();
+    wanted
+        .into_iter()
+        .map(|(label, entity, kind)| {
+            let sample = store
+                .series(&entity, kind)
+                .and_then(|series| series.latest());
+            (label, sample)
+        })
+        .collect()
 }
 
 fn age(sample: Sample) -> String {

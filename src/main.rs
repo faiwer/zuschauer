@@ -49,7 +49,7 @@ fn main() -> ExitCode {
 #[tokio::main(flavor = "current_thread")]
 async fn run(config: &'static config::Config) -> ExitCode {
     collect::spawn(config);
-    match web::serve(config.listen).await {
+    match web::serve(config).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("web server on {}: {e}", config.listen);

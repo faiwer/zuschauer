@@ -11,4 +11,7 @@ use crate::config::HostConfig;
 pub fn spawn(config: &'static HostConfig) {
     tokio::spawn(cpu::run(&config.cpu));
     tokio::spawn(memory::run(&config.memory));
+    for mount in &config.storage {
+        tokio::spawn(storage::run(mount));
+    }
 }

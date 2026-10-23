@@ -15,18 +15,30 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
     let mut errors = Vec::new();
     let host = raw.host.unwrap_or_default();
 
-    let cpu = metric("host.cpu", host.cpu.unwrap_or_default(), &mut errors);
-    let memory = metric("host.memory", host.memory.unwrap_or_default(), &mut errors);
+    let cpu = metric(
+        "host.cpu",
+        host.cpu.unwrap_or_default(),
+        DEFAULT_EVERY,
+        &mut errors,
+    );
+    let memory = metric(
+        "host.memory",
+        host.memory.unwrap_or_default(),
+        DEFAULT_EVERY,
+        &mut errors,
+    );
 
+    let raw_storage = host.storage.unwrap_or_default();
+    let storage_every = raw_storage.every.map_or(DEFAULT_EVERY, Dur::get);
     let mut storage = Vec::new();
-    for (path, raw_metric) in host.storage.unwrap_or_default() {
-        let at = format!("host.storage.\"{}\"", path.display());
+    for (path, raw_metric) in raw_storage.mounts.unwrap_or_default() {
+        let at = format!("host.storage.mounts.\"{}\"", path.display());
         if !path.is_absolute() {
             errors.push(format!("{at}: mount point must be an absolute path"));
         } else if !path.is_dir() {
             errors.push(format!("{at}: no such directory"));
         }
-        let metric = metric(&at, raw_metric, &mut errors);
+        let metric = metric(&at, raw_metric, storage_every, &mut errors);
         storage.push(Mount { path, metric });
     }
 
@@ -43,8 +55,8 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
     })
 }
 
-fn metric(at: &str, raw: RawMetric, errors: &mut Vec<String>) -> Metric {
-    let every = raw.every.map_or(DEFAULT_EVERY, Dur::get);
+fn metric(at: &str, raw: RawMetric, default_every: Duration, errors: &mut Vec<String>) -> Metric {
+    let every = raw.every.map_or(default_every, Dur::get);
     if every < MIN_EVERY {
         errors.push(format!(
             "{at}.every: must be at least {}",
@@ -83,6 +95,24 @@ mod tests {
     }
 
     #[test]
+    fn mount_every_overrides_storage_every() {
+        let config = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "host": {
+                    "storage": {
+                        "every": "5m",
+                        "mounts": { "/": {}, "/tmp": { "every": "30s" } }
+                    }
+                }
+            }"#,
+        ))
+        .unwrap();
+        let every: Vec<_> = config.host.storage.iter().map(|m| m.metric.every).collect();
+        assert_eq!(every, [Duration::from_secs(300), Duration::from_secs(30)]);
+    }
+
+    #[test]
     fn collects_all_errors() {
         let raw = parse(
             r#"{
@@ -90,7 +120,7 @@ mod tests {
                 "host": {
                     "cpu": { "every": "60s", "alert": { "above": "85%", "for": "10s" } },
                     "memory": { "every": "100ms" },
-                    "storage": { "relative/path": {} }
+                    "storage": { "mounts": { "relative/path": {} } }
                 }
             }"#,
         );

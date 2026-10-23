@@ -1,11 +1,14 @@
 //! Types shared by collectors, the store and the web UI.
 
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// What a series belongs to.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EntityId {
     Host,
+    /// A configured storage path.
+    Mount(PathBuf),
 }
 
 /// Which metric of an entity a series holds.
@@ -15,6 +18,8 @@ pub enum MetricKind {
     Cpu,
     /// Percent of RAM held by programs, cache excluded, 0..=100.
     Memory,
+    /// Percent of the filesystem used, as `df` reports it, 0..=100.
+    Storage,
 }
 
 /// Unix time in seconds.

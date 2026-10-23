@@ -21,8 +21,16 @@ pub struct RawConfig {
 pub struct RawHost {
     pub cpu: Option<RawMetric>,
     pub memory: Option<RawMetric>,
+    pub storage: Option<RawStorage>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawStorage {
+    /// Default for every mount; a mount's own `every` wins.
+    pub every: Option<Dur>,
     /// Keyed by mount point.
-    pub storage: Option<BTreeMap<PathBuf, RawMetric>>,
+    pub mounts: Option<BTreeMap<PathBuf, RawMetric>>,
 }
 
 #[derive(Debug, Default, Deserialize)]

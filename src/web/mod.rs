@@ -4,16 +4,19 @@ mod pages;
 mod svg;
 
 use std::io;
-use std::net::SocketAddr;
 
 use axum::Router;
 use axum::routing::get;
 use tokio::net::TcpListener;
 
+use crate::config::Config;
+
 /// Runs until the process is killed.
-pub async fn serve(addr: SocketAddr) -> io::Result<()> {
-    let app = Router::new().route("/", get(pages::index));
-    let listener = TcpListener::bind(addr).await?;
-    eprintln!("listening on http://{addr}");
+pub async fn serve(config: &'static Config) -> io::Result<()> {
+    let app = Router::new()
+        .route("/", get(pages::index))
+        .with_state(config);
+    let listener = TcpListener::bind(config.listen).await?;
+    eprintln!("listening on http://{}", config.listen);
     axum::serve(listener, app).await
 }
