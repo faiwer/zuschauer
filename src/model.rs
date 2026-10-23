@@ -13,6 +13,8 @@ pub enum EntityId {
 pub enum MetricKind {
     /// Percent of all cores, 0..=100.
     Cpu,
+    /// Percent of RAM held by programs, cache excluded, 0..=100.
+    Memory,
 }
 
 /// Unix time in seconds.

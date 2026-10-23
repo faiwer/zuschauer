@@ -2,19 +2,15 @@
 //! nice ticks summed over all cores. The kernel keeps them as 32-bit counters.
 
 use std::io;
-use std::sync::OnceLock;
 
+use super::super::mach::{KERN_SUCCESS, MachPort, host};
 use super::Ticks;
-
-type MachPort = u32;
 
 const HOST_CPU_LOAD_INFO: i32 = 3;
 const CPU_STATE_MAX: usize = 4;
 const CPU_STATE_IDLE: usize = 2;
-const KERN_SUCCESS: i32 = 0;
 
 unsafe extern "C" {
-    fn mach_host_self() -> MachPort;
     fn host_statistics(host: MachPort, flavor: i32, info: *mut i32, count: *mut u32) -> i32;
 }
 
@@ -40,12 +36,4 @@ pub fn read() -> io::Result<Ticks> {
         idle: ticks[CPU_STATE_IDLE].into(),
         total: ticks.iter().map(|&t| u64::from(t)).sum(),
     })
-}
-
-/// Every `mach_host_self()` call adds a send right to the port, so it's
-/// fetched once instead of per read.
-fn host() -> MachPort {
-    static HOST: OnceLock<MachPort> = OnceLock::new();
-    // SAFETY: no preconditions; returns the host port of the current task.
-    *HOST.get_or_init(|| unsafe { mach_host_self() })
 }

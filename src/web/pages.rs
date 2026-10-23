@@ -5,10 +5,19 @@ use maud::{DOCTYPE, Markup, html};
 use crate::model::{EntityId, MetricKind, Sample, now};
 use crate::store::store;
 
+const HOST_METRICS: [(&str, MetricKind); 2] =
+    [("CPU", MetricKind::Cpu), ("Memory", MetricKind::Memory)];
+
 pub async fn index() -> Markup {
-    let cpu = store()
-        .series(&EntityId::Host, MetricKind::Cpu)
-        .and_then(|series| series.latest());
+    let latest = {
+        let store = store();
+        HOST_METRICS.map(|(label, kind)| {
+            let sample = store
+                .series(&EntityId::Host, kind)
+                .and_then(|series| series.latest());
+            (label, sample)
+        })
+    };
 
     html! {
         (DOCTYPE)
@@ -19,14 +28,18 @@ pub async fn index() -> Markup {
             }
             body {
                 h1 { "Host" }
-                p {
-                    "CPU: "
-                    @match cpu {
-                        Some(sample) => {
-                            strong { (format!("{:.1}%", sample.value)) }
-                            " (" (age(sample)) ")"
+                table {
+                    @for (label, sample) in latest {
+                        tr {
+                            th { (label) }
+                            @match sample {
+                                Some(sample) => {
+                                    td { strong { (format!("{:.1}%", sample.value)) } }
+                                    td { (age(sample)) }
+                                }
+                                None => td colspan="2" { "no data yet" },
+                            }
                         }
-                        None => "no data yet",
                     }
                 }
             }
