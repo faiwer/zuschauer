@@ -9,17 +9,32 @@ pub enum EntityId {
     Host,
     /// A configured storage path.
     Mount(PathBuf),
+    /// Keyed by name, which survives the container being recreated.
+    Container(String),
 }
 
 /// Which metric of an entity a series holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MetricKind {
-    /// Percent of all cores, 0..=100.
+    /// Percent of all host cores, 0..=100.
     Cpu,
     /// Percent of RAM held by programs, cache excluded, 0..=100.
     Memory,
+    /// Bytes held, cache excluded.
+    MemoryBytes,
     /// Percent of the filesystem used, as `df` reports it, 0..=100.
     Storage,
+}
+
+/// Lifecycle state of an entity that can come and go.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Status {
+    Running,
+    Paused,
+    /// Was running earlier, isn't anymore.
+    Gone {
+        since: Timestamp,
+    },
 }
 
 /// Unix time in seconds.

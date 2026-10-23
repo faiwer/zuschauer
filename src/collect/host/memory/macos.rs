@@ -5,7 +5,7 @@
 use std::io;
 
 use super::super::mach::{KERN_SUCCESS, MachPort, host, sysctl_u64};
-use super::Usage;
+use super::usage::Usage;
 
 const HOST_VM_INFO64: i32 = 4;
 

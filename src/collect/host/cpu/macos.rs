@@ -4,7 +4,7 @@
 use std::io;
 
 use super::super::mach::{KERN_SUCCESS, MachPort, host};
-use super::Ticks;
+use super::ticks::Ticks;
 
 const HOST_CPU_LOAD_INFO: i32 = 3;
 const CPU_STATE_MAX: usize = 4;

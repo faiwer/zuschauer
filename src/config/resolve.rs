@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use super::raw::{RawConfig, RawMetric};
-use super::resolved::{Config, HostConfig, Metric, Mount};
+use super::resolved::{Config, DockerConfig, HostConfig, Metric, Mount};
 use super::types::Dur;
 
 const DEFAULT_EVERY: Duration = Duration::from_secs(60);
@@ -42,6 +42,21 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
         storage.push(Mount { path, metric });
     }
 
+    let docker = raw.docker.map(|raw_docker| {
+        if let Some(socket) = &raw_docker.socket
+            && !socket.exists()
+        {
+            errors.push(format!(
+                "docker.socket: {} does not exist",
+                socket.display()
+            ));
+        }
+        DockerConfig {
+            every: every("docker", raw_docker.every, DEFAULT_EVERY, &mut errors),
+            socket: raw_docker.socket,
+        }
+    });
+
     if !errors.is_empty() {
         return Err(errors);
     }
@@ -52,17 +67,23 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
             memory,
             storage,
         },
+        docker,
     })
 }
 
-fn metric(at: &str, raw: RawMetric, default_every: Duration, errors: &mut Vec<String>) -> Metric {
-    let every = raw.every.map_or(default_every, Dur::get);
+fn every(at: &str, raw: Option<Dur>, default: Duration, errors: &mut Vec<String>) -> Duration {
+    let every = raw.map_or(default, Dur::get);
     if every < MIN_EVERY {
         errors.push(format!(
             "{at}.every: must be at least {}",
             Dur::from(MIN_EVERY)
         ));
     }
+    every
+}
+
+fn metric(at: &str, raw: RawMetric, default_every: Duration, errors: &mut Vec<String>) -> Metric {
+    let every = every(at, raw.every, default_every, errors);
     if let Some(alert) = raw.alert
         && alert.duration.get() < every
     {

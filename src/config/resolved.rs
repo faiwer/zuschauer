@@ -11,6 +11,15 @@ use super::types::{AlertRule, Dur};
 pub struct Config {
     pub listen: SocketAddr,
     pub host: HostConfig,
+    /// `None` when containers aren't monitored.
+    pub docker: Option<DockerConfig>,
+}
+
+#[derive(Debug)]
+pub struct DockerConfig {
+    pub every: Duration,
+    /// `None` means find it automatically.
+    pub socket: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -39,6 +48,16 @@ impl fmt::Display for Config {
         writeln!(f, "host.memory: {}", self.host.memory)?;
         for mount in &self.host.storage {
             writeln!(f, "host.storage {}: {}", mount.path.display(), mount.metric)?;
+        }
+        match &self.docker {
+            Some(docker) => {
+                write!(f, "docker: every {}, socket ", Dur::from(docker.every))?;
+                match &docker.socket {
+                    Some(socket) => writeln!(f, "{}", socket.display())?,
+                    None => writeln!(f, "auto")?,
+                }
+            }
+            None => writeln!(f, "docker: off")?,
         }
         Ok(())
     }

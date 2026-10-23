@@ -1,6 +1,6 @@
 //! Reads `/proc/stat`. The parser is pure so it's tested on any OS.
 
-use super::Ticks;
+use super::ticks::Ticks;
 
 #[cfg(target_os = "linux")]
 pub fn read() -> std::io::Result<Ticks> {

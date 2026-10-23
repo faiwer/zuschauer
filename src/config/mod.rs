@@ -18,6 +18,6 @@ pub use load::load;
 #[expect(unused_imports, reason = "public API, not consumed yet")]
 pub use {
     error::LoadError,
-    resolved::{Config, HostConfig, Metric, Mount},
+    resolved::{Config, DockerConfig, HostConfig, Metric, Mount},
     types::{AlertRule, Dur, Percent},
 };

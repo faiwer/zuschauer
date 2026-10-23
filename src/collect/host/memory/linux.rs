@@ -1,6 +1,6 @@
 //! Reads `/proc/meminfo`. The parser is pure so it's tested on any OS.
 
-use super::Usage;
+use super::usage::Usage;
 
 #[cfg(target_os = "linux")]
 pub fn read() -> std::io::Result<Usage> {

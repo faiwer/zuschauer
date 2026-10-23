@@ -14,6 +14,15 @@ use super::types::{AlertRule, Dur};
 pub struct RawConfig {
     pub listen: SocketAddr,
     pub host: Option<RawHost>,
+    pub docker: Option<RawDocker>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawDocker {
+    pub every: Option<Dur>,
+    /// Docker or Podman API socket; found automatically when unset.
+    pub socket: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, Deserialize)]

@@ -5,7 +5,7 @@ use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use super::Blocks;
+use super::blocks::Blocks;
 
 pub fn read(path: &Path) -> io::Result<Blocks> {
     let c_path = CString::new(path.as_os_str().as_bytes())?;

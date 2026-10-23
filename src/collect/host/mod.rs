@@ -1,17 +1,14 @@
 //! Host metrics: CPU, memory and storage.
+//!
+//! - `spawn`: starts one task per metric (and per mount)
+//! - `cpu`, `memory`, `storage`: the collectors
+//! - `mach`: macOS kernel API bits shared by the collectors
 
 mod cpu;
 #[cfg(target_os = "macos")]
 mod mach;
 mod memory;
+mod spawn;
 mod storage;
 
-use crate::config::HostConfig;
-
-pub fn spawn(config: &'static HostConfig) {
-    tokio::spawn(cpu::run(&config.cpu));
-    tokio::spawn(memory::run(&config.memory));
-    for mount in &config.storage {
-        tokio::spawn(storage::run(mount));
-    }
-}
+pub use spawn::spawn;
