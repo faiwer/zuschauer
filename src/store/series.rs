@@ -23,6 +23,10 @@ impl Series {
         self.points.push(sample);
     }
 
+    pub fn latest(&self) -> Option<Sample> {
+        self.points.iter().next_back().copied()
+    }
+
     /// Oldest first.
     #[expect(dead_code, reason = "read by the web UI, not built yet")]
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Sample> {

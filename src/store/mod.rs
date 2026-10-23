@@ -45,7 +45,6 @@ impl Store {
             .push(sample);
     }
 
-    #[expect(dead_code, reason = "read by the web UI, not built yet")]
     pub fn series(&self, entity: &EntityId, metric: MetricKind) -> Option<&Series> {
         self.entities.get(entity)?.series.get(&metric)
     }

@@ -14,7 +14,9 @@ use linux::read;
 #[cfg(target_os = "macos")]
 use macos::read;
 
-use tokio::time::{MissedTickBehavior, interval};
+use std::time::Duration;
+
+use tokio::time::{MissedTickBehavior, interval, sleep};
 
 use crate::config::Metric;
 use crate::model::{EntityId, MetricKind, Sample};
@@ -27,10 +29,16 @@ struct Ticks {
     total: u64,
 }
 
+/// The first value is averaged over a shorter window so it shows up right
+/// after start instead of one full `every` later.
+const FIRST_WINDOW: Duration = Duration::from_secs(1);
+
 pub async fn run(config: &'static Metric) {
+    let mut prev = read().ok();
+    sleep(FIRST_WINDOW.min(config.every)).await;
+
     let mut ticker = interval(config.every);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-    let mut prev = None;
     loop {
         ticker.tick().await;
         let cur = match read() {

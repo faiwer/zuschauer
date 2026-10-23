@@ -43,12 +43,17 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    run(config);
-    ExitCode::SUCCESS
+    run(config)
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn run(config: &'static config::Config) {
+async fn run(config: &'static config::Config) -> ExitCode {
     collect::spawn(config);
-    std::future::pending::<()>().await;
+    match web::serve(config.listen).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("web server on {}: {e}", config.listen);
+            ExitCode::FAILURE
+        }
+    }
 }

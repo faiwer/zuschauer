@@ -1,0 +1,1 @@
+//! Server-side SVG sparklines.

@@ -26,9 +26,12 @@ pub struct Sample {
 
 impl Sample {
     pub fn now(value: f32) -> Self {
-        let at = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs() as Timestamp);
-        Self { at, value }
+        Self { at: now(), value }
     }
+}
+
+pub fn now() -> Timestamp {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as Timestamp)
 }
