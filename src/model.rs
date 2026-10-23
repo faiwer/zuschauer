@@ -11,6 +11,11 @@ pub enum EntityId {
     Mount(PathBuf),
     /// Keyed by name, which survives the container being recreated.
     Container(String),
+    /// An app's health check, by app ID and check name.
+    HealthCheck {
+        app: String,
+        check: String,
+    },
 }
 
 /// Which metric of an entity a series holds.
@@ -24,15 +29,25 @@ pub enum MetricKind {
     MemoryBytes,
     /// Percent of the filesystem used, as `df` reports it, 0..=100.
     Storage,
+    /// Milliseconds until a successful response's headers arrived.
+    Latency,
 }
 
-/// Lifecycle state of an entity that can come and go.
+/// State of an entity that can come and go, or fail.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
+    /// Containers.
     Running,
     Paused,
     /// Was running earlier, isn't anymore.
     Gone {
+        since: Timestamp,
+    },
+    /// Health checks. `since` is the first attempt of the current streak.
+    Up {
+        since: Timestamp,
+    },
+    Down {
         since: Timestamp,
     },
 }

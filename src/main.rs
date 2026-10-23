@@ -1,5 +1,6 @@
 mod collect;
 mod config;
+mod http;
 mod model;
 mod store;
 mod web;

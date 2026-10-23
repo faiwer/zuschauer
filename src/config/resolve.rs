@@ -2,14 +2,18 @@
 //! checks that serde can't express. Collects every problem instead of
 //! stopping at the first one.
 
+use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
-use super::raw::{RawConfig, RawMetric};
-use super::resolved::{Config, DockerConfig, HostConfig, Metric, Mount};
+use super::raw::{RawApp, RawConfig, RawHealthCheck, RawMetric};
+use super::resolved::{App, Config, DockerConfig, HealthCheck, HostConfig, Metric, Mount};
 use super::types::Dur;
 
 const DEFAULT_EVERY: Duration = Duration::from_secs(60);
 const MIN_EVERY: Duration = Duration::from_secs(1);
+/// Capped at the check's `every` when that's shorter.
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+const DEFAULT_EXPECT_CODE: u16 = 200;
 
 pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
     let mut errors = Vec::new();
@@ -57,6 +61,8 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
         }
     });
 
+    let apps = apps(raw.apps.unwrap_or_default(), &mut errors);
+
     if !errors.is_empty() {
         return Err(errors);
     }
@@ -68,7 +74,80 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
             storage,
         },
         docker,
+        apps,
     })
+}
+
+fn apps(raw: BTreeMap<String, RawApp>, errors: &mut Vec<String>) -> Vec<App> {
+    raw.into_iter()
+        .map(|(id, raw_app)| {
+            let at = format!("apps.{id}");
+            if id.is_empty() {
+                errors.push("apps: an app ID can't be empty".to_owned());
+            }
+            let raw_checks = raw_app.health_checks.unwrap_or_default();
+            if raw_checks.is_empty() {
+                errors.push(format!("{at}: nothing to monitor, add healthChecks"));
+            }
+            let mut names = HashSet::new();
+            let health_checks = raw_checks
+                .into_iter()
+                .enumerate()
+                .map(|(i, raw_check)| {
+                    let check = health_check(&format!("{at}.healthChecks[{i}]"), raw_check, errors);
+                    if !names.insert(check.name.clone()) {
+                        errors.push(format!(
+                            "{at}.healthChecks[{i}]: another check is also named \"{}\", give one a \"name\"",
+                            check.name
+                        ));
+                    }
+                    check
+                })
+                .collect();
+            App {
+                name: raw_app.name.unwrap_or_else(|| id.clone()),
+                id,
+                health_checks,
+            }
+        })
+        .collect()
+}
+
+fn health_check(at: &str, raw: RawHealthCheck, errors: &mut Vec<String>) -> HealthCheck {
+    let every = every(at, raw.every, DEFAULT_EVERY, errors);
+
+    let timeout = raw.timeout.map_or(DEFAULT_TIMEOUT.min(every), Dur::get);
+    if timeout.is_zero() {
+        errors.push(format!("{at}.timeout: must be more than 0"));
+    } else if timeout > every {
+        errors.push(format!(
+            "{at}.timeout ({}) is longer than {at}.every ({})",
+            Dur::from(timeout),
+            Dur::from(every),
+        ));
+    }
+
+    let expect_code = raw.expect_code.unwrap_or(DEFAULT_EXPECT_CODE);
+    if !(100..=599).contains(&expect_code) {
+        errors.push(format!(
+            "{at}.expectCode: {expect_code} is not an HTTP status code"
+        ));
+    }
+
+    if raw.content_type.as_deref().is_some_and(str::is_empty) {
+        errors.push(format!(
+            "{at}.contentType: can't be empty, leave it out instead"
+        ));
+    }
+
+    HealthCheck {
+        name: raw.name.unwrap_or_else(|| raw.url.to_string()),
+        url: raw.url,
+        every,
+        timeout,
+        expect_code,
+        content_type: raw.content_type,
+    }
 }
 
 fn every(at: &str, raw: Option<Dur>, default: Duration, errors: &mut Vec<String>) -> Duration {
@@ -147,6 +226,63 @@ mod tests {
         );
         let errors = resolve(raw).unwrap_err();
         assert_eq!(errors.len(), 3, "{errors:#?}");
+    }
+
+    #[test]
+    fn applies_health_check_defaults() {
+        let config = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "apps": {
+                    "web": {
+                        "healthChecks": [
+                            { "url": "https://example.com/health" },
+                            { "name": "fast", "url": "http://127.0.0.1:8080/", "every": "5s" }
+                        ]
+                    }
+                }
+            }"#,
+        ))
+        .unwrap();
+        let app = &config.apps[0];
+        assert_eq!(app.name, "web");
+        let [slow, fast] = &app.health_checks[..] else {
+            panic!("{:#?}", app.health_checks);
+        };
+        assert_eq!(slow.name, "https://example.com/health");
+        assert_eq!((slow.every, slow.timeout), (DEFAULT_EVERY, DEFAULT_TIMEOUT));
+        assert_eq!(slow.expect_code, 200);
+        assert_eq!(fast.timeout, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn collects_health_check_errors() {
+        let raw = parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "apps": {
+                    "empty": {},
+                    "web": {
+                        "healthChecks": [
+                            { "url": "http://a/", "every": "10s", "timeout": "20s" },
+                            { "url": "http://a/", "expectCode": 42, "contentType": "" }
+                        ]
+                    }
+                }
+            }"#,
+        );
+        let errors = resolve(raw).unwrap_err();
+        // Nothing to monitor, timeout > every, duplicate name, expectCode,
+        // empty contentType.
+        assert_eq!(errors.len(), 5, "{errors:#?}");
+    }
+
+    #[test]
+    fn rejects_bad_urls_while_parsing() {
+        let result: Result<RawConfig, _> = serde_json::from_str(
+            r#"{ "listen": "127.0.0.1:9100", "apps": { "a": { "healthChecks": [{ "url": "ftp://a/" }] } } }"#,
+        );
+        assert!(result.is_err());
     }
 
     #[test]

@@ -5,6 +5,8 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::http::Url;
+
 use super::types::{AlertRule, Dur};
 
 #[derive(Debug)]
@@ -13,6 +15,27 @@ pub struct Config {
     pub host: HostConfig,
     /// `None` when containers aren't monitored.
     pub docker: Option<DockerConfig>,
+    /// Sorted by ID.
+    pub apps: Vec<App>,
+}
+
+#[derive(Debug)]
+pub struct App {
+    pub id: String,
+    pub name: String,
+    pub health_checks: Vec<HealthCheck>,
+}
+
+#[derive(Debug)]
+pub struct HealthCheck {
+    /// Unique within the app.
+    pub name: String,
+    pub url: Url,
+    pub every: Duration,
+    pub timeout: Duration,
+    pub expect_code: u16,
+    /// Must be a substring of the response's `Content-Type`, case-insensitive.
+    pub content_type: Option<String>,
 }
 
 #[derive(Debug)]
@@ -58,6 +81,29 @@ impl fmt::Display for Config {
                 }
             }
             None => writeln!(f, "docker: off")?,
+        }
+        for app in &self.apps {
+            writeln!(f, "apps.{}: {}", app.id, app.name)?;
+            for check in &app.health_checks {
+                writeln!(f, "apps.{}.{}: {check}", app.id, check.name)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for HealthCheck {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "GET {} every {}, timeout {}, expect {}",
+            self.url,
+            Dur::from(self.every),
+            Dur::from(self.timeout),
+            self.expect_code,
+        )?;
+        if let Some(content_type) = &self.content_type {
+            write!(f, ", content type {content_type}")?;
         }
         Ok(())
     }

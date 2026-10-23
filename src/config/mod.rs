@@ -15,6 +15,7 @@ mod resolved;
 mod types;
 
 pub use load::load;
+pub use resolved::{App, HealthCheck};
 #[expect(unused_imports, reason = "public API, not consumed yet")]
 pub use {
     error::LoadError,

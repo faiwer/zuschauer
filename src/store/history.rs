@@ -28,6 +28,14 @@ impl Store {
         self.entities.entry(entity).or_default().set_status(status);
     }
 
+    pub fn set_error(&mut self, entity: EntityId, error: Option<String>) {
+        self.entities.entry(entity).or_default().set_error(error);
+    }
+
+    pub fn entity(&self, entity: &EntityId) -> Option<&Entity> {
+        self.entities.get(entity)
+    }
+
     pub fn series(&self, entity: &EntityId, metric: MetricKind) -> Option<&Series> {
         self.entities.get(entity)?.series(metric)
     }

@@ -14,9 +14,18 @@ struct ContainerRow {
     memory: Option<Sample>,
 }
 
+struct CheckRow {
+    app_name: &'static str,
+    check_name: &'static str,
+    status: Option<Status>,
+    latency: Option<Sample>,
+    error: Option<String>,
+}
+
 pub async fn index(State(config): State<&'static Config>) -> Markup {
     let host = host_rows(config);
     let containers = container_rows();
+    let checks = check_rows(config);
 
     html! {
         (DOCTYPE)
@@ -58,6 +67,23 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                                         td { (row.memory.map_or("—".to_owned(), |s| format!("mem {}", mib(s.value)))) }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+                @if !checks.is_empty() {
+                    h1 { "Apps" }
+                    table {
+                        @for row in checks {
+                            tr {
+                                th { (row.app_name) }
+                                td { (row.check_name) }
+                                td { (status(row.status)) }
+                                @match (row.status, row.latency) {
+                                    (Some(Status::Up { .. }), Some(s)) => td { "responded in " (format!("{:.0}", s.value)) " ms" },
+                                    _ => td { "—" },
+                                }
+                                td { (row.error.unwrap_or_default()) }
                             }
                         }
                     }
@@ -109,11 +135,38 @@ fn container_rows() -> Vec<ContainerRow> {
         .collect()
 }
 
+fn check_rows(config: &'static Config) -> Vec<CheckRow> {
+    let store = store();
+    config
+        .apps
+        .iter()
+        .flat_map(|app| app.health_checks.iter().map(move |check| (app, check)))
+        .map(|(app, check)| {
+            let entity = store.entity(&EntityId::HealthCheck {
+                app: app.id.clone(),
+                check: check.name.clone(),
+            });
+            CheckRow {
+                app_name: &app.name,
+                check_name: &check.name,
+                status: entity.and_then(|e| e.status()),
+                latency: entity
+                    .and_then(|e| e.series(MetricKind::Latency))
+                    .and_then(|s| s.latest()),
+                error: entity.and_then(|e| e.error()).map(str::to_owned),
+            }
+        })
+        .collect()
+}
+
 fn status(status: Option<Status>) -> String {
     match status {
-        Some(Status::Running) | None => "running".to_owned(),
+        None => "pending".to_owned(),
+        Some(Status::Running) => "running".to_owned(),
         Some(Status::Paused) => "paused".to_owned(),
         Some(Status::Gone { since }) => format!("gone {}", ago(since)),
+        Some(Status::Up { since }) => format!("up {}", ago(since)),
+        Some(Status::Down { since }) => format!("down {}", ago(since)),
     }
 }
 
