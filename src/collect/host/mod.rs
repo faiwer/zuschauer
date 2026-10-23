@@ -2,5 +2,10 @@
 
 mod cpu;
 mod memory;
-mod proc;
 mod storage;
+
+use crate::config::HostConfig;
+
+pub fn spawn(config: &'static HostConfig) {
+    tokio::spawn(cpu::run(&config.cpu));
+}

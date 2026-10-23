@@ -43,6 +43,12 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    eprintln!("config loaded; collectors and web server are not implemented yet");
+    run(config);
     ExitCode::SUCCESS
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn run(config: &'static config::Config) {
+    collect::spawn(config);
+    std::future::pending::<()>().await;
 }
