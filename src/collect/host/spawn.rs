@@ -1,6 +1,6 @@
 use crate::config::HostConfig;
 
-use super::{cpu, memory, storage};
+use super::{cpu, memory, storage, temperature};
 
 pub fn spawn(config: &'static HostConfig) {
     tokio::spawn(cpu::run(&config.cpu));
@@ -8,4 +8,5 @@ pub fn spawn(config: &'static HostConfig) {
     for mount in &config.storage {
         tokio::spawn(storage::run(mount));
     }
+    temperature::spawn(&config.temperature);
 }

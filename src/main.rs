@@ -8,9 +8,10 @@ mod web;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: zuschauer [--check] [CONFIG]\n\n  \
-    CONFIG    path to the config file (default: config.jsonc)\n  \
-    --check   validate the config, print it with defaults applied, and exit";
+const USAGE: &str = "usage: zuschauer [--check] [CONFIG]\n       zuschauer --sensors\n\n  \
+    CONFIG      path to the config file (default: config.jsonc)\n  \
+    --check     validate the config, print it with defaults applied, and exit\n  \
+    --sensors   list temperature sensors with their current readings, and exit";
 
 fn main() -> ExitCode {
     let mut check = false;
@@ -18,6 +19,7 @@ fn main() -> ExitCode {
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--check" => check = true,
+            "--sensors" => return collect::list_sensors(),
             "-h" | "--help" => {
                 println!("{USAGE}");
                 return ExitCode::SUCCESS;

@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp};
 
 use super::entity::Entity;
-use super::series::Series;
 
 #[derive(Debug)]
 pub struct Store {
@@ -38,10 +37,6 @@ impl Store {
 
     pub fn entity(&self, entity: &EntityId) -> Option<&Entity> {
         self.entities.get(entity)
-    }
-
-    pub fn series(&self, entity: &EntityId, metric: MetricKind) -> Option<&Series> {
-        self.entities.get(entity)?.series(metric)
     }
 
     /// Sorted by `EntityId`.

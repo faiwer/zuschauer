@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use crate::http::{HostPort, Url};
 
-use super::types::{AlertRule, Dur};
+use super::types::{AlertRule, Celsius, Dur};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -65,6 +65,16 @@ pub struct RawHost {
     pub cpu: Option<RawMetric>,
     pub memory: Option<RawMetric>,
     pub storage: Option<RawStorage>,
+    /// Keyed by `driver/label`, as `--sensors` lists them.
+    pub temperature: Option<BTreeMap<String, RawSensor>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawSensor {
+    pub name: Option<String>,
+    pub every: Option<Dur>,
+    pub alert: Option<AlertRule<Celsius>>,
 }
 
 #[derive(Debug, Default, Deserialize)]

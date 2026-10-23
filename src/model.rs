@@ -9,6 +9,8 @@ pub enum EntityId {
     Host,
     /// A configured storage path.
     Mount(PathBuf),
+    /// A configured temperature sensor, by `driver/label`.
+    Sensor(String),
     /// Keyed by name, which survives the container being recreated.
     Container(String),
     /// An app's health check, by app ID and check name.
@@ -34,6 +36,8 @@ pub enum MetricKind {
     MemoryBytes,
     /// Percent of the filesystem used, as `df` reports it, 0..=100.
     Storage,
+    /// Degrees Celsius.
+    Temperature,
     /// Milliseconds until a successful response's headers arrived.
     Latency,
 }

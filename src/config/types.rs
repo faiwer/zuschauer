@@ -32,6 +32,35 @@ impl fmt::Display for Percent {
     }
 }
 
+/// A temperature in degrees Celsius, written as `"70C"`.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize)]
+#[serde(try_from = "String")]
+pub struct Celsius(f32);
+
+impl TryFrom<String> for Celsius {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let number = s
+            .strip_suffix('C')
+            .ok_or_else(|| format!("expected a temperature like \"70C\", got \"{s}\""))?;
+        let value: f32 = number
+            .trim()
+            .parse()
+            .map_err(|_| format!("\"{s}\" is not a valid temperature"))?;
+        if !value.is_finite() || value < -273.15 {
+            return Err(format!("\"{s}\" is not a possible temperature"));
+        }
+        Ok(Self(value))
+    }
+}
+
+impl fmt::Display for Celsius {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}C", self.0)
+    }
+}
+
 /// A human-readable duration such as `"60s"`, `"10m"` or `"14d"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(try_from = "String")]
@@ -68,8 +97,8 @@ impl fmt::Display for Dur {
 /// Fire when a value stays above `above` for at least `for`.
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct AlertRule {
-    pub above: Percent,
+pub struct AlertRule<T = Percent> {
+    pub above: T,
     #[serde(rename = "for")]
     pub duration: Dur,
 }
@@ -90,6 +119,16 @@ mod tests {
         assert!(Percent::try_from("abc%".to_owned()).is_err());
         assert!(Percent::try_from("101%".to_owned()).is_err());
         assert!(Percent::try_from("-1%".to_owned()).is_err());
+    }
+
+    #[test]
+    fn celsius_parses() {
+        assert_eq!(Celsius::try_from("70C".to_owned()).unwrap().0, 70.0);
+        assert_eq!(Celsius::try_from("-5.5C".to_owned()).unwrap().0, -5.5);
+        assert!(Celsius::try_from("70".to_owned()).is_err());
+        assert!(Celsius::try_from("70F".to_owned()).is_err());
+        assert!(Celsius::try_from("infC".to_owned()).is_err());
+        assert!(Celsius::try_from("-300C".to_owned()).is_err());
     }
 
     #[test]

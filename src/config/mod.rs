@@ -1,7 +1,8 @@
 //! `config.jsonc` → `&'static Config`.
 //!
 //! - `raw`: serde types that mirror the file
-//! - `types`: value types parsed from strings (`Percent`, `Dur`, `AlertRule`)
+//! - `types`: value types parsed from strings (`Percent`, `Celsius`, `Dur`,
+//!   `AlertRule`)
 //! - `resolve`: `RawConfig` → `Config`, defaults and validation
 //! - `resolved`: the final `Config`
 //! - `load`: read, parse, resolve
@@ -15,10 +16,10 @@ mod resolved;
 mod types;
 
 pub use load::load;
-pub use resolved::{App, CertificatesConfig, HealthCheck};
+pub use resolved::{App, CertificatesConfig, HealthCheck, Sensor};
 #[expect(unused_imports, reason = "public API, not consumed yet")]
 pub use {
     error::LoadError,
     resolved::{Config, DockerConfig, HostConfig, Metric, Mount},
-    types::{AlertRule, Dur, Percent},
+    types::{AlertRule, Celsius, Dur, Percent},
 };

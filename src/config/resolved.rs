@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::http::{HostPort, Url};
 
-use super::types::{AlertRule, Dur};
+use super::types::{AlertRule, Celsius, Dur};
 
 #[derive(Debug)]
 pub struct Config {
@@ -61,6 +61,17 @@ pub struct HostConfig {
     pub cpu: Metric,
     pub memory: Metric,
     pub storage: Vec<Mount>,
+    /// Sorted by ID.
+    pub temperature: Vec<Sensor>,
+}
+
+#[derive(Debug)]
+pub struct Sensor {
+    /// `driver/label`, matched against what the OS reports.
+    pub id: String,
+    pub name: String,
+    pub every: Duration,
+    pub alert: Option<AlertRule<Celsius>>,
 }
 
 #[derive(Debug)]
@@ -82,6 +93,9 @@ impl fmt::Display for Config {
         writeln!(f, "host.memory: {}", self.host.memory)?;
         for mount in &self.host.storage {
             writeln!(f, "host.storage {}: {}", mount.path.display(), mount.metric)?;
+        }
+        for sensor in &self.host.temperature {
+            writeln!(f, "host.temperature \"{}\": {sensor}", sensor.id)?;
         }
         match &self.docker {
             Some(docker) => {
@@ -131,6 +145,16 @@ impl fmt::Display for HealthCheck {
             write!(f, ", content type {content_type}")?;
         }
         Ok(())
+    }
+}
+
+impl fmt::Display for Sensor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}, every {}", self.name, Dur::from(self.every))?;
+        match &self.alert {
+            Some(alert) => write!(f, ", alert above {} for {}", alert.above, alert.duration),
+            None => write!(f, ", no alert"),
+        }
     }
 }
 

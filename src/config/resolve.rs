@@ -5,9 +5,9 @@
 use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
-use super::raw::{RawApp, RawCertificates, RawConfig, RawHealthCheck, RawMetric};
+use super::raw::{RawApp, RawCertificates, RawConfig, RawHealthCheck, RawMetric, RawSensor};
 use super::resolved::{
-    App, CertificatesConfig, Config, DockerConfig, HealthCheck, HostConfig, Metric, Mount,
+    App, CertificatesConfig, Config, DockerConfig, HealthCheck, HostConfig, Metric, Mount, Sensor,
 };
 use super::types::Dur;
 
@@ -51,6 +51,13 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
         storage.push(Mount { path, metric });
     }
 
+    let temperature = host
+        .temperature
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(id, raw_sensor)| sensor(id, raw_sensor, &mut errors))
+        .collect();
+
     let docker = raw.docker.map(|raw_docker| {
         if let Some(socket) = &raw_docker.socket
             && !socket.exists()
@@ -78,6 +85,7 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
             cpu,
             memory,
             storage,
+            temperature,
         },
         docker,
         certificates,
@@ -216,20 +224,48 @@ fn every(at: &str, raw: Option<Dur>, default: Duration, errors: &mut Vec<String>
     every
 }
 
-fn metric(at: &str, raw: RawMetric, default_every: Duration, errors: &mut Vec<String>) -> Metric {
-    let every = every(at, raw.every, default_every, errors);
-    if let Some(alert) = raw.alert
-        && alert.duration.get() < every
+fn sensor(id: String, raw: RawSensor, errors: &mut Vec<String>) -> Sensor {
+    let at = format!("host.temperature.\"{id}\"");
+    if !id
+        .split_once('/')
+        .is_some_and(|(driver, label)| !driver.is_empty() && !label.is_empty())
     {
         errors.push(format!(
-            "{at}.alert.for ({}) is shorter than {at}.every ({}), it would fire on a single sample",
-            alert.duration,
-            Dur::from(every),
+            "{at}: expected \"driver/label\" as `zuschauer --sensors` lists it"
         ));
+    }
+    if raw.name.as_deref().is_some_and(str::is_empty) {
+        errors.push(format!("{at}.name: can't be empty, leave it out instead"));
+    }
+    let every = every(&at, raw.every, DEFAULT_EVERY, errors);
+    if let Some(alert) = &raw.alert {
+        alert_for(&at, alert.duration, every, errors);
+    }
+    Sensor {
+        name: raw.name.unwrap_or_else(|| id.clone()),
+        id,
+        every,
+        alert: raw.alert,
+    }
+}
+
+fn metric(at: &str, raw: RawMetric, default_every: Duration, errors: &mut Vec<String>) -> Metric {
+    let every = every(at, raw.every, default_every, errors);
+    if let Some(alert) = &raw.alert {
+        alert_for(at, alert.duration, every, errors);
     }
     Metric {
         every,
         alert: raw.alert,
+    }
+}
+
+fn alert_for(at: &str, duration: Dur, every: Duration, errors: &mut Vec<String>) {
+    if duration.get() < every {
+        errors.push(format!(
+            "{at}.alert.for ({duration}) is shorter than {at}.every ({}), it would fire on a single sample",
+            Dur::from(every),
+        ));
     }
 }
 
@@ -377,6 +413,46 @@ mod tests {
         .unwrap_err();
         // warnBefore of 0, the same host twice (443 is the default).
         assert_eq!(errors.len(), 2, "{errors:#?}");
+    }
+
+    #[test]
+    fn checks_sensors() {
+        let config = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "host": {
+                    "temperature": {
+                        "chip/Sensor A/B": { "name": "Board", "alert": { "above": "70C", "for": "10m" } },
+                        "chip/temp2": { "every": "10s" }
+                    }
+                }
+            }"#,
+        ))
+        .unwrap();
+        let [labeled, plain] = &config.host.temperature[..] else {
+            panic!("{:#?}", config.host.temperature);
+        };
+        assert_eq!((&*labeled.name, labeled.every), ("Board", DEFAULT_EVERY));
+        assert_eq!(
+            (&*plain.name, plain.every),
+            ("chip/temp2", Duration::from_secs(10))
+        );
+
+        let errors = resolve(parse(
+            r#"{
+                "listen": "127.0.0.1:9100",
+                "host": {
+                    "temperature": {
+                        "chip": {},
+                        "/temp1": {},
+                        "chip/temp1": { "name": "", "every": "1m", "alert": { "above": "70C", "for": "10s" } }
+                    }
+                }
+            }"#,
+        ))
+        .unwrap_err();
+        // Two bad IDs, empty name, alert.for < every.
+        assert_eq!(errors.len(), 4, "{errors:#?}");
     }
 
     #[test]
