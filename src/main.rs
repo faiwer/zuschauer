@@ -2,6 +2,7 @@ mod alerts;
 mod collect;
 mod config;
 mod cron;
+mod heartbeat;
 mod http;
 mod jobs;
 mod model;
@@ -58,6 +59,7 @@ async fn run(config: &'static config::Config) -> ExitCode {
     notify::spawn(config);
     collect::spawn(config);
     jobs::spawn(&config.apps);
+    heartbeat::spawn(config.heartbeat.as_ref());
     match web::serve(config).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

@@ -6,6 +6,7 @@ use maud::{DOCTYPE, Markup, html};
 use crate::alerts;
 use crate::config::{App, Config, Dur, RestartLimit};
 use crate::cron::format_local;
+use crate::heartbeat;
 use crate::jobs::{self, JobState, Verdict};
 use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp, now};
 use crate::store::{Entity, store};
@@ -92,6 +93,15 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                                     td { "for " (ago(alert.since)) }
                                 }
                             }
+                        }
+                    }
+                }
+                @if let Some(heartbeat) = &config.heartbeat {
+                    h1 { "Heartbeat" }
+                    table {
+                        tr {
+                            th { (heartbeat.to_string()) }
+                            (heartbeat_cells(&heartbeat::status()))
                         }
                     }
                 }
@@ -211,6 +221,26 @@ fn container_cells(row: &ContainerRow) -> Markup {
                 td { (row.cpu.map_or("—".to_owned(), |s| format!("CPU {:.1}%", s.value))) }
                 td { (row.memory.map_or("—".to_owned(), |s| format!("mem {}", mib(s.value)))) }
             }
+        }
+    }
+}
+
+fn heartbeat_cells(status: &heartbeat::Status) -> Markup {
+    html! {
+        @match &status.failing {
+            Some((since, error)) => {
+                td {
+                    strong { "failing" } " for " (ago(*since))
+                    @if let Some(at) = status.sent { ", last sent " (ago(at)) " ago" }
+                }
+                td { (error) }
+            }
+            None => td colspan="2" {
+                @match status.sent {
+                    Some(at) => { "sent " (ago(at)) " ago" }
+                    None => "pending",
+                }
+            },
         }
     }
 }

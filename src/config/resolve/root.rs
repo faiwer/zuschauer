@@ -7,6 +7,7 @@ use crate::config::types::Dur;
 use super::alerts::link_alerts;
 use super::apps::apps;
 use super::every::{DEFAULT_EVERY, every};
+use super::heartbeat::heartbeat;
 use super::host::host;
 use super::notifiers::notifiers;
 use super::services::services_config;
@@ -31,10 +32,15 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
     if raw.context.as_deref().is_some_and(str::is_empty) {
         errors.push("context: can't be empty, leave it out instead".to_owned());
     }
+    let context = raw.context.unwrap_or_else(hostname);
+    let heartbeat = raw
+        .heartbeat
+        .and_then(|raw_heartbeat| heartbeat(raw_heartbeat, &context, &mut errors));
 
     let mut config = Config {
         listen: raw.listen,
-        context: raw.context.unwrap_or_else(hostname),
+        context,
+        heartbeat,
         host,
         docker,
         certificates,

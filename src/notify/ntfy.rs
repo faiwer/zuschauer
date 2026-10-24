@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use serde_json::json;
 
 use crate::config::{Ntfy, Severity};
-use crate::http::{Url, describe, post};
+use crate::http::{Url, describe, post_json};
 
 use super::message::Message;
 use super::outbox::Failure;
@@ -42,7 +42,7 @@ pub(super) async fn publish(
         .collect();
 
     let address = config.address.as_ref().unwrap_or(&DEFAULT_ADDRESS);
-    let response = post(address, &headers, body.as_bytes())
+    let response = post_json(address, &headers, body.as_bytes())
         .await
         .map_err(|e| Failure::Retry(describe(&e)))?;
     let status = response.head.status;

@@ -25,6 +25,20 @@ pub struct RawConfig {
     pub apps: Option<BTreeMap<String, RawApp>>,
     /// Keyed by name.
     pub notifiers: Option<BTreeMap<String, RawNotifier>>,
+    pub heartbeat: Option<RawHeartbeat>,
+}
+
+/// A request sent regularly, so a service like healthchecks.io notices when
+/// zuschauer stops. `url`, `headers` and `body` are templates.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawHeartbeat {
+    pub url: String,
+    pub method: Option<String>,
+    /// `name: value`.
+    pub headers: Option<Vec<String>>,
+    pub body: Option<String>,
+    pub every: Option<Dur>,
 }
 
 #[derive(Debug, Deserialize)]

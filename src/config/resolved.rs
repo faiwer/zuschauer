@@ -25,6 +25,18 @@ pub struct Config {
     pub apps: Vec<App>,
     /// Sorted by name.
     pub notifiers: Vec<Notifier>,
+    pub heartbeat: Option<Heartbeat>,
+}
+
+/// The request zuschauer sends every `every`, its templates filled in.
+#[derive(Debug)]
+pub struct Heartbeat {
+    pub url: Url,
+    /// Upper case.
+    pub method: String,
+    pub headers: Vec<(String, String)>,
+    pub body: Option<String>,
+    pub every: Duration,
 }
 
 #[derive(Debug)]
@@ -299,6 +311,9 @@ impl fmt::Display for Config {
         for notifier in &self.notifiers {
             writeln!(f, "notifiers.{}: {}", notifier.name, notifier.kind)?;
         }
+        if let Some(heartbeat) = &self.heartbeat {
+            writeln!(f, "heartbeat: {heartbeat}")?;
+        }
         for alert in self.alerts() {
             writeln!(f, "alert \"{}\": {alert}", alert.id)?;
         }
@@ -364,6 +379,29 @@ impl fmt::Display for HealthCheck {
         )?;
         if let Some(content_type) = &self.content_type {
             write!(f, ", content type {content_type}")?;
+        }
+        Ok(())
+    }
+}
+
+/// Without the URL's path and query, the header values or the body: any of
+/// them can hold the secret that identifies the check.
+impl fmt::Display for Heartbeat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let url = self.url.to_string();
+        let origin = &url[..url.len() - self.url.target.len()];
+        write!(
+            f,
+            "{} {origin}/…, every {}",
+            self.method,
+            Dur::from(self.every)
+        )?;
+        if !self.headers.is_empty() {
+            let names: Vec<&str> = self.headers.iter().map(|(name, _)| name.as_str()).collect();
+            write!(f, ", headers {}", names.join(", "))?;
+        }
+        if let Some(body) = &self.body {
+            write!(f, ", a {}-byte body", body.len())?;
         }
         Ok(())
     }

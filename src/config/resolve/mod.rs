@@ -9,15 +9,19 @@
 //! - `jobs`: apps' scheduled jobs
 //! - `alerts`: alert IDs, labels and dependencies
 //! - `notifiers`: notifiers
+//! - `heartbeat`: the request that tells an outside service zuschauer runs
+//! - `template`: `%{variable}` placeholders in the heartbeat
 //! - `every`: the `every` interval every section has
 
 mod alerts;
 mod apps;
 mod every;
+mod heartbeat;
 mod host;
 mod jobs;
 mod notifiers;
 mod root;
 mod services;
+mod template;
 
 pub use root::resolve;
