@@ -1,3 +1,4 @@
+use crate::cron::Civil;
 use crate::model::{Status, Timestamp, now};
 
 pub fn status_label(status: Option<Status>) -> String {
@@ -23,6 +24,22 @@ pub fn ago(at: Timestamp) -> String {
 /// Like `ago`, for the future.
 pub fn until(at: Timestamp) -> String {
     span(at.saturating_sub(now()))
+}
+
+/// Local time, like `Apr 28, 2025, 15:24`.
+pub fn date_time(at: Timestamp) -> String {
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    let c = Civil::local(at);
+    format!(
+        "{} {}, {}, {:02}:{:02}",
+        MONTHS[c.month as usize - 1],
+        c.day,
+        c.year,
+        c.hour,
+        c.minute
+    )
 }
 
 pub fn span(seconds: Timestamp) -> String {

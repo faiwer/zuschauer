@@ -1,0 +1,126 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #0b141d;
+  --text: #e6e6e6;
+  --text-secondary: #acafb4;
+  --panel-bg: #121c28;
+  --panel-border: #304458;
+  --level-low: #3fb950;
+  --level-normal: #4c9aff;
+  --level-high: #f0883e;
+  --level-critical: #f85149;
+  --toast-positive-bg: #0c2528;
+  --toast-positive-border: #1d4a4f;
+  --toast-neutral-bg: #1e2b3a;
+  --toast-neutral-border: #0b141d;
+  --toast-warning-bg: #2a1d0e;
+  --toast-warning-border: #5a3d1c;
+  --padding-x: 1rem;
+  --panel-shadow: 0.125rem 0.25rem 0.0625rem black;
+}
+
+/* No root font-size: rem follows the browser's setting (16px by default), the
+   same base media queries use. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1rem;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+}
+
+/* Spacing comes from the containers' gaps. */
+h1,
+h2,
+h3,
+p,
+form {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+.highlight {
+  color: var(--text);
+}
+
+.highlight {
+  font-weight: 400;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+/* A square of its own font-size, whatever glyph is inside. */
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+/* Icons draw in `currentColor`. */
+.tinted {
+  color: var(--tint, var(--text-secondary));
+}
+
+.icon-sprite {
+  display: none;
+}
+
+/* Text in its `.tint-*` color, over `.highlight`'s. */
+.tint-text {
+  color: var(--tint);
+}
+
+.tint-ok {
+  --tint: var(--level-low);
+}
+
+.tint-warning {
+  --tint: var(--level-high);
+}
+
+.tint-problem {
+  --tint: var(--level-critical);
+}
+
+.tint-info {
+  --tint: var(--level-normal);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  vertical-align: middle;
+}

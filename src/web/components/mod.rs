@@ -1,23 +1,15 @@
-//! Page building blocks. Each section gathers its rows from the store and
-//! config (`*_rows`, `*_row`), then renders them (`render_*`).
+//! Page building blocks.
 //!
-//! - `frame`: the HTML document around a page
-//! - `styles`: every component's CSS file, inlined by `frame`
-//! - `alerts`, `heartbeat`, `host`, `containers`, `apps`: the index sections
-//! - `format`: durations, sizes and statuses as text
+//! - `ui`: generic pieces that know nothing about monitoring
+//! - `domain`: the sections pages show, built from `ui`
+//! - `styles`: every component's CSS file, inlined by `ui::frame`
 
-mod alerts;
-mod apps;
-mod containers;
-mod format;
-mod frame;
-mod heartbeat;
-mod host;
+mod domain;
 mod styles;
+mod ui;
 
-pub use alerts::render_alerts;
-pub use apps::{app_views, render_apps};
-pub use containers::{container_rows, render_containers};
-pub use frame::render_frame;
-pub use heartbeat::render_heartbeat;
-pub use host::{host_rows, render_host};
+pub use domain::{
+    app_views, container_rows, header_view, host_view, render_alerts, render_apps,
+    render_containers, render_header, render_host,
+};
+pub use ui::render_frame;

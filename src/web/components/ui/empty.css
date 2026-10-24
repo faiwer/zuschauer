@@ -1,0 +1,42 @@
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid;
+  border-radius: 0.5rem;
+
+  .icon {
+    font-size: 1.5rem;
+  }
+}
+
+.empty-positive {
+  background: var(--toast-positive-bg);
+  border-color: var(--toast-positive-border);
+}
+
+.empty-neutral {
+  background: var(--toast-neutral-bg);
+  border-color: var(--toast-neutral-border);
+}
+
+.empty-warning {
+  background: var(--toast-warning-bg);
+  border-color: var(--toast-warning-border);
+}
+
+.empty-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.empty-title {
+  color: var(--text);
+}
+
+.empty-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
