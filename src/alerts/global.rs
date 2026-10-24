@@ -13,23 +13,24 @@ fn engine() -> MutexGuard<'static, Engine> {
     ENGINE.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Feeds what a collector saw into `alert`, and notifies when that makes it
-/// fire or resolve.
+/// Feeds what a collector saw into `alert`, and notifies when that makes it,
+/// or alerts it was holding back, fire or resolve.
 pub fn observe(alert: &'static Alert, observation: Observation) {
     let at = now();
-    let change = engine().observe(alert, observation, at);
-    let message = match change {
-        None => return,
-        Some(Change::Fired { since, detail }) => {
-            eprintln!("alert {}: firing, {detail}", alert.id);
-            message::fired(alert, &detail, since, at)
-        }
-        Some(Change::Resolved { since }) => {
-            eprintln!("alert {}: resolved", alert.id);
-            message::resolved(alert, since, at)
-        }
-    };
-    notify::send(message);
+    let changes = engine().observe(alert, observation, at);
+    for (alert, change) in changes {
+        let message = match change {
+            Change::Fired { since, detail } => {
+                eprintln!("alert {}: firing, {detail}", alert.id);
+                message::fired(alert, &detail, since, at)
+            }
+            Change::Resolved { since } => {
+                eprintln!("alert {}: resolved", alert.id);
+                message::resolved(alert, since, at)
+            }
+        };
+        notify::send(message);
+    }
 }
 
 pub struct Firing {

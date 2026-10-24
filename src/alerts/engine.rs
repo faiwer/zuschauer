@@ -2,6 +2,8 @@
 //! it's urgent) or firing.
 //! Only the switches to firing and back to OK are reported, so a problem
 //! that clears while pending is never announced.
+//! An alert stays pending while an ancestor has a problem, and fires as soon
+//! as the last such ancestor clears, without waiting for its next observation.
 
 use std::collections::BTreeMap;
 
@@ -31,6 +33,14 @@ pub(super) enum Change {
 pub(super) struct Problem {
     pub since: Timestamp,
     pub detail: String,
+    /// The latest observation was `Urgent`.
+    urgent: bool,
+}
+
+impl Problem {
+    fn due(&self, alert: &Alert, at: Timestamp) -> bool {
+        self.urgent || u64::from(at.saturating_sub(self.since)) >= alert.after.as_secs()
+    }
 }
 
 struct State {
@@ -51,17 +61,15 @@ impl Engine {
         }
     }
 
+    /// Returns `alert`'s own change first, then those of the alerts it was
+    /// holding back, when its problem clears.
     pub fn observe(
         &mut self,
         alert: &'static Alert,
         observation: Observation,
         at: Timestamp,
-    ) -> Option<Change> {
-        let blocked = alert.parents.iter().any(|id| {
-            self.states
-                .get(id.as_str())
-                .is_some_and(|parent| parent.problem.is_some())
-        });
+    ) -> Vec<(&'static Alert, Change)> {
+        let blocked = self.is_blocked(alert);
         let state = self.states.entry(&alert.id).or_insert(State {
             alert,
             problem: None,
@@ -80,26 +88,80 @@ impl Engine {
         };
 
         let Some(detail) = detail else {
-            let problem = state.problem.take()?;
+            let Some(problem) = state.problem.take() else {
+                return Vec::new();
+            };
             let fired = std::mem::take(&mut state.fired);
-            return fired.then_some(Change::Resolved {
-                since: problem.since,
-            });
+            let resolved = fired.then_some((
+                alert,
+                Change::Resolved {
+                    since: problem.since,
+                },
+            ));
+            return resolved
+                .into_iter()
+                .chain(self.release(alert, at))
+                .collect();
         };
         let problem = state.problem.get_or_insert(Problem {
             since: at,
             detail: String::new(),
+            urgent: false,
         });
         problem.detail = detail;
-        let lasted = at.saturating_sub(problem.since);
-        if state.fired || blocked || (!is_urgent && u64::from(lasted) < alert.after.as_secs()) {
-            return None;
+        problem.urgent = is_urgent;
+        if state.fired || blocked || !problem.due(alert, at) {
+            return Vec::new();
         }
         state.fired = true;
-        Some(Change::Fired {
-            since: problem.since,
-            detail: problem.detail.clone(),
+        vec![(
+            alert,
+            Change::Fired {
+                since: problem.since,
+                detail: problem.detail.clone(),
+            },
+        )]
+    }
+
+    /// Any ancestor with a problem holds an alert back, pending or firing.
+    fn is_blocked(&self, alert: &Alert) -> bool {
+        alert.parents.iter().any(|id| {
+            self.states
+                .get(id.as_str())
+                .is_some_and(|parent| parent.problem.is_some())
         })
+    }
+
+    /// Fires the descendants of `parent`, whose problem just cleared, that
+    /// waited only for it. A descendant that's still held back by another
+    /// ancestor waits for that one.
+    fn release(&mut self, parent: &Alert, at: Timestamp) -> Vec<(&'static Alert, Change)> {
+        let ready: Vec<&'static Alert> = self
+            .states
+            .values()
+            .filter(|s| !s.fired && s.alert.parents.contains(&parent.id))
+            .filter(|s| s.problem.as_ref().is_some_and(|p| p.due(s.alert, at)))
+            .map(|s| s.alert)
+            .filter(|alert| !self.is_blocked(alert))
+            .collect();
+        let mut changes = Vec::new();
+        for alert in ready {
+            let Some(state) = self.states.get_mut(alert.id.as_str()) else {
+                continue;
+            };
+            let Some(problem) = &state.problem else {
+                continue;
+            };
+            changes.push((
+                alert,
+                Change::Fired {
+                    since: problem.since,
+                    detail: problem.detail.clone(),
+                },
+            ));
+            state.fired = true;
+        }
+        changes
     }
 
     pub fn firing(&self) -> impl Iterator<Item = (&'static Alert, &Problem)> {
@@ -149,23 +211,44 @@ mod tests {
         })
     }
 
+    impl Engine {
+        /// `observe` for a lone alert, which changes nothing but itself.
+        fn observe_one(
+            &mut self,
+            alert: &'static Alert,
+            observation: Observation,
+            at: Timestamp,
+        ) -> Option<Change> {
+            let mut changes = self.observe(alert, observation, at);
+            assert!(changes.len() <= 1, "{changes:?}");
+            changes.pop().map(|(changed, change)| {
+                assert_eq!(changed.id, alert.id);
+                change
+            })
+        }
+    }
+
+    fn ids(changes: &[(&'static Alert, Change)]) -> Vec<&'static str> {
+        changes.iter().map(|(alert, _)| alert.id.as_str()).collect()
+    }
+
     #[test]
     fn fires_after_the_problem_lasts_and_resolves_once() {
         let cpu = alert("cpu", 60, above(85.0, None), &[]);
         let mut engine = Engine::new();
-        assert_eq!(engine.observe(cpu, Observation::Value(90.0), 0), None);
-        assert_eq!(engine.observe(cpu, Observation::Value(95.0), 30), None);
+        assert_eq!(engine.observe_one(cpu, Observation::Value(90.0), 0), None);
+        assert_eq!(engine.observe_one(cpu, Observation::Value(95.0), 30), None);
         assert_eq!(
-            engine.observe(cpu, Observation::Value(92.0), 60),
+            engine.observe_one(cpu, Observation::Value(92.0), 60),
             fired(0, "92.0%, above 85%")
         );
-        assert_eq!(engine.observe(cpu, Observation::Value(99.0), 90), None);
+        assert_eq!(engine.observe_one(cpu, Observation::Value(99.0), 90), None);
         assert_eq!(engine.firing().count(), 1);
         assert_eq!(
-            engine.observe(cpu, Observation::Value(50.0), 120),
+            engine.observe_one(cpu, Observation::Value(50.0), 120),
             Some(Change::Resolved { since: 0 })
         );
-        assert_eq!(engine.observe(cpu, Observation::Value(50.0), 150), None);
+        assert_eq!(engine.observe_one(cpu, Observation::Value(50.0), 150), None);
         assert_eq!(engine.firing().count(), 0);
     }
 
@@ -174,12 +257,12 @@ mod tests {
         let check = alert("check", 60, None, &[]);
         let mut engine = Engine::new();
         let down = || Observation::Problem("down".to_owned());
-        assert_eq!(engine.observe(check, down(), 0), None);
-        assert_eq!(engine.observe(check, Observation::Fine, 30), None);
+        assert_eq!(engine.observe_one(check, down(), 0), None);
+        assert_eq!(engine.observe_one(check, Observation::Fine, 30), None);
         // The streak restarts.
-        assert_eq!(engine.observe(check, down(), 40), None);
-        assert_eq!(engine.observe(check, down(), 90), None);
-        assert_eq!(engine.observe(check, down(), 100), fired(40, "down"));
+        assert_eq!(engine.observe_one(check, down(), 40), None);
+        assert_eq!(engine.observe_one(check, down(), 90), None);
+        assert_eq!(engine.observe_one(check, down(), 100), fired(40, "down"));
     }
 
     #[test]
@@ -187,26 +270,30 @@ mod tests {
         let service = alert("service", 60, None, &[]);
         let mut engine = Engine::new();
         let down = || Observation::Problem("down".to_owned());
-        assert_eq!(engine.observe(service, down(), 0), None);
+        assert_eq!(engine.observe_one(service, down(), 0), None);
         // The streak continues, so `since` is the first failure.
         assert_eq!(
-            engine.observe(service, Observation::Urgent("restarts".to_owned()), 10),
+            engine.observe_one(service, Observation::Urgent("restarts".to_owned()), 10),
             fired(0, "restarts")
         );
-        assert_eq!(engine.observe(service, down(), 20), None);
-        assert!(engine.observe(service, Observation::Fine, 30).is_some());
+        assert_eq!(engine.observe_one(service, down(), 20), None);
+        assert!(engine.observe_one(service, Observation::Fine, 30).is_some());
     }
 
     #[test]
     fn resolves_only_below_the_hysteresis_level() {
         let temp = alert("temp", 0, above(90.0, Some(85.0)), &[]);
         let mut engine = Engine::new();
-        assert_eq!(engine.observe(temp, Observation::Value(88.0), 0), None);
-        assert!(engine.observe(temp, Observation::Value(91.0), 10).is_some());
-        assert_eq!(engine.observe(temp, Observation::Value(87.0), 20), None);
-        assert_eq!(engine.observe(temp, Observation::Value(85.0), 30), None);
+        assert_eq!(engine.observe_one(temp, Observation::Value(88.0), 0), None);
+        assert!(
+            engine
+                .observe_one(temp, Observation::Value(91.0), 10)
+                .is_some()
+        );
+        assert_eq!(engine.observe_one(temp, Observation::Value(87.0), 20), None);
+        assert_eq!(engine.observe_one(temp, Observation::Value(85.0), 30), None);
         assert_eq!(
-            engine.observe(temp, Observation::Value(84.9), 40),
+            engine.observe_one(temp, Observation::Value(84.9), 40),
             Some(Change::Resolved { since: 10 })
         );
     }
@@ -219,14 +306,90 @@ mod tests {
         let problem = || Observation::Problem("down".to_owned());
 
         // The parent is only pending, and that already holds the child back.
-        assert_eq!(engine.observe(db, problem(), 0), None);
-        assert_eq!(engine.observe(api, problem(), 1), None);
-        assert!(engine.observe(db, problem(), 120).is_some());
-        assert_eq!(engine.observe(api, problem(), 121), None);
+        assert_eq!(engine.observe_one(db, problem(), 0), None);
+        assert_eq!(engine.observe_one(api, problem(), 1), None);
+        assert!(engine.observe_one(db, problem(), 120).is_some());
+        assert_eq!(engine.observe_one(api, problem(), 121), None);
 
-        // The parent recovers, the child doesn't: now the child fires, its
-        // problem dating back to its first failure.
-        assert!(engine.observe(db, Observation::Fine, 200).is_some());
-        assert_eq!(engine.observe(api, problem(), 201), fired(1, "down"));
+        // The parent recovers, the child doesn't: the child fires right
+        // away, its problem dating back to its first failure.
+        let changes = engine.observe(db, Observation::Fine, 200);
+        assert_eq!(ids(&changes), ["db", "api"]);
+        assert_eq!(changes.into_iter().nth(1).map(|(_, c)| c), fired(1, "down"));
+        assert_eq!(engine.observe_one(api, problem(), 201), None);
+    }
+
+    #[test]
+    fn a_released_child_still_waits_for_its_own_for() {
+        let db = alert("db", 0, None, &[]);
+        let api = alert("api", 60, None, &["db"]);
+        let mut engine = Engine::new();
+        let problem = || Observation::Problem("down".to_owned());
+        assert!(engine.observe_one(db, problem(), 0).is_some());
+        assert_eq!(engine.observe_one(api, problem(), 10), None);
+        // Only 20s of the child's 60s have passed.
+        assert_eq!(ids(&engine.observe(db, Observation::Fine, 30)), ["db"]);
+        assert_eq!(engine.observe_one(api, problem(), 70), fired(10, "down"));
+    }
+
+    #[test]
+    fn an_urgent_child_is_released_at_once() {
+        let db = alert("db", 0, None, &[]);
+        let api = alert("api", 3600, None, &["db"]);
+        let mut engine = Engine::new();
+        assert!(
+            engine
+                .observe_one(db, Observation::Problem("down".to_owned()), 0)
+                .is_some()
+        );
+        let urgent = Observation::Urgent("failed".to_owned());
+        assert_eq!(engine.observe_one(api, urgent, 10), None);
+        assert_eq!(
+            ids(&engine.observe(db, Observation::Fine, 20)),
+            ["db", "api"]
+        );
+    }
+
+    #[test]
+    fn a_chain_releases_one_level_at_a_time() {
+        // host <- db <- api: `parents` holds all ancestors, as config
+        // resolution leaves it.
+        let host = alert("host", 0, None, &[]);
+        let db = alert("db", 0, None, &["host"]);
+        let api = alert("api", 0, None, &["db", "host"]);
+        let mut engine = Engine::new();
+        let problem = || Observation::Problem("down".to_owned());
+        assert!(engine.observe_one(host, problem(), 0).is_some());
+        assert_eq!(engine.observe_one(db, problem(), 1), None);
+        assert_eq!(engine.observe_one(api, problem(), 2), None);
+
+        // db is still down, so it fires and keeps holding api back.
+        assert_eq!(
+            ids(&engine.observe(host, Observation::Fine, 10)),
+            ["host", "db"]
+        );
+        assert_eq!(engine.observe_one(api, problem(), 11), None);
+        assert_eq!(
+            ids(&engine.observe(db, Observation::Fine, 20)),
+            ["db", "api"]
+        );
+    }
+
+    #[test]
+    fn a_grandchild_is_released_when_the_middle_recovered_first() {
+        let host = alert("host", 0, None, &[]);
+        let db = alert("db", 0, None, &["host"]);
+        let api = alert("api", 0, None, &["db", "host"]);
+        let mut engine = Engine::new();
+        let problem = || Observation::Problem("down".to_owned());
+        assert!(engine.observe_one(host, problem(), 0).is_some());
+        assert_eq!(engine.observe_one(db, problem(), 1), None);
+        assert_eq!(engine.observe_one(api, problem(), 2), None);
+        // db recovers silently while host still holds api back.
+        assert!(engine.observe(db, Observation::Fine, 5).is_empty());
+        assert_eq!(
+            ids(&engine.observe(host, Observation::Fine, 10)),
+            ["host", "api"]
+        );
     }
 }
