@@ -6,7 +6,7 @@ use maud::{DOCTYPE, Markup, html};
 use crate::alerts;
 use crate::config::{App, Config, Dur, RestartLimit};
 use crate::cron::format_local;
-use crate::jobs::{self, JobState};
+use crate::jobs::{self, JobState, Verdict};
 use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp, now};
 use crate::store::{Entity, store};
 
@@ -49,7 +49,7 @@ struct ServiceRow {
 
 struct JobRow {
     name: &'static str,
-    state: Option<JobState>,
+    state: Option<(JobState, Verdict)>,
 }
 
 struct AppView {
@@ -182,8 +182,8 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                             @for row in &app.jobs {
                                 tr {
                                     th { (row.name) }
-                                    @if let Some(state) = &row.state {
-                                        (job_cells(state))
+                                    @if let Some((state, verdict)) = &row.state {
+                                        (job_cells(state, *verdict))
                                     } @else {
                                         td colspan="3" { "—" }
                                     }
@@ -215,17 +215,19 @@ fn container_cells(row: &ContainerRow) -> Markup {
     }
 }
 
-fn job_cells(state: &JobState) -> Markup {
-    let at = now();
-    let late = state.running.is_none() && state.next_due.is_some_and(|due| due <= at);
+fn job_cells(state: &JobState, verdict: Verdict) -> Markup {
     html! {
         td {
-            @match (state.running, state.last) {
-                (Some(run), _) => { "running " (ago(run.started)) }
-                _ if late => strong { "late" },
-                (None, Some(last)) if !last.ok => strong { "failed" },
-                (None, Some(_)) => "ok",
-                (None, None) => "waiting",
+            @match verdict {
+                Verdict::Hung { since } => { strong { "hung" } ", running " (ago(since)) }
+                Verdict::Failed { retrying: Some(since), .. } => {
+                    strong { "failed" } ", retry running " (ago(since))
+                }
+                Verdict::Failed { retrying: None, .. } => strong { "failed" },
+                Verdict::Late { .. } => strong { "late" },
+                Verdict::Running { since } => { "running " (ago(since)) }
+                Verdict::Waiting if state.last.is_some() => "ok",
+                Verdict::Waiting => "waiting",
             }
         }
         td {
@@ -372,7 +374,10 @@ fn app_view(app: &'static App) -> AppView {
         .iter()
         .map(|job| JobRow {
             name: &job.name,
-            state: jobs::state(&app.id, &job.name),
+            state: jobs::state(&app.id, &job.name).map(|mut state| {
+                let verdict = state.judge(job, now());
+                (state, verdict)
+            }),
         })
         .collect();
     AppView {

@@ -9,4 +9,4 @@ mod registry;
 mod state;
 
 pub use registry::{ReportError, report, spawn, state};
-pub use state::JobState;
+pub use state::{JobState, Verdict};

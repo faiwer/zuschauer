@@ -60,7 +60,7 @@ async fn watch(tracked: &'static Tracked) {
         let at = now();
         let (observation, mut wake) = {
             let mut state = tracked.state();
-            let observation = state.judge(tracked.job, at);
+            let observation = state.judge(tracked.job, at).observation();
             (observation, state.next_change(at))
         };
         if let Some(alert) = &tracked.job.alert {
