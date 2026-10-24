@@ -2,6 +2,7 @@
 //! config (`*_rows`, `*_row`), then renders them (`render_*`).
 //!
 //! - `frame`: the HTML document around a page
+//! - `styles`: every component's CSS file, inlined by `frame`
 //! - `alerts`, `heartbeat`, `host`, `containers`, `apps`: the index sections
 //! - `format`: durations, sizes and statuses as text
 
@@ -12,6 +13,7 @@ mod format;
 mod frame;
 mod heartbeat;
 mod host;
+mod styles;
 
 pub use alerts::render_alerts;
 pub use apps::{app_views, render_apps};
