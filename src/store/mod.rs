@@ -14,3 +14,4 @@ mod series;
 
 pub use entity::Entity;
 pub use global::store;
+pub use history::Store;

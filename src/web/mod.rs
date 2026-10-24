@@ -2,10 +2,12 @@
 //!
 //! - `server`: router and listener
 //! - `pages`: page handlers
-//! - `jobs`: the endpoint jobs report their runs to
+//! - `components`: the pieces pages are built from
+//! - `api`: endpoints for programs, like the one jobs report to
 //! - `svg`: sparklines
 
-mod jobs;
+mod api;
+mod components;
 mod pages;
 mod server;
 mod svg;

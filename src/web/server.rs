@@ -6,7 +6,8 @@ use tokio::net::TcpListener;
 
 use crate::config::Config;
 
-use super::{jobs, pages};
+use super::api::jobs;
+use super::pages;
 
 /// Runs until the process is killed.
 pub async fn serve(config: &'static Config) -> io::Result<()> {

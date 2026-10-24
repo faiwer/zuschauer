@@ -11,4 +11,4 @@ mod global;
 mod message;
 
 pub use engine::Observation;
-pub use global::{firing, observe};
+pub use global::{Firing, firing, observe};

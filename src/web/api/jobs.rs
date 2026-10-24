@@ -1,10 +1,9 @@
-//! `POST /jobs/{app}/{job}/{event}`, where jobs report their runs.
-
 use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode, header};
 
 use crate::jobs::{self, ReportError};
 
+/// `POST /jobs/{app}/{job}/{event}`, where jobs report their runs.
 pub async fn report(
     Path((app, job, event)): Path<(String, String, String)>,
     headers: HeaderMap,
