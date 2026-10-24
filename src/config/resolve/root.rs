@@ -9,6 +9,7 @@ use super::apps::apps;
 use super::every::{DEFAULT_EVERY, every};
 use super::host::host;
 use super::notifiers::notifiers;
+use super::services::services_config;
 
 /// Certificates change rarely; this only has to catch a renewal that stopped.
 const DEFAULT_CERTIFICATES_EVERY: Duration = Duration::from_secs(6 * 3600);
@@ -19,7 +20,13 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
     let host = host(raw.host.unwrap_or_default(), &mut errors);
     let docker = raw.docker.map(|raw_docker| docker(raw_docker, &mut errors));
     let certificates = certificates(raw.certificates.unwrap_or_default(), &mut errors);
-    let apps = apps(raw.apps.unwrap_or_default(), docker.is_some(), &mut errors);
+    let services = services_config(raw.services.unwrap_or_default(), &mut errors);
+    let apps = apps(
+        raw.apps.unwrap_or_default(),
+        docker.is_some(),
+        &services,
+        &mut errors,
+    );
     let notifiers = notifiers(raw.notifiers.unwrap_or_default(), &mut errors);
     if raw.context.as_deref().is_some_and(str::is_empty) {
         errors.push("context: can't be empty, leave it out instead".to_owned());
@@ -31,6 +38,7 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
         host,
         docker,
         certificates,
+        services,
         apps,
         notifiers,
     };

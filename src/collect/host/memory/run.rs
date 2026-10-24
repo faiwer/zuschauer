@@ -27,11 +27,6 @@ pub async fn run(config: &'static Metric) {
             continue;
         };
         store().push(EntityId::Host, MetricKind::Memory, Sample::now(percent));
-        eprintln!(
-            "memory: {percent:.1}% ({} / {} MiB)",
-            usage.used >> 20,
-            usage.total >> 20
-        );
         if let Some(alert) = &config.alert {
             observe(alert, Observation::Value(percent));
         }

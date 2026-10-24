@@ -33,14 +33,10 @@ pub async fn run(
         let mut observation = Observation::Fine;
         let outcome = expires_at(target).await.map(|at| {
             let left = Duration::from_secs(at.saturating_sub(now()).into());
-            let days = left.as_secs() / 86400;
-            let soon = if left < config.warn_before {
+            if left < config.warn_before {
+                let days = left.as_secs() / 86400;
                 observation = Observation::Problem(format!("expires in {days}d"));
-                ", expiring soon"
-            } else {
-                ""
-            };
-            eprintln!("certificate {label}: expires in {days}d{soon}");
+            }
             store().set_expires_at(entity.clone(), at);
         });
         if let Err(error) = &outcome {

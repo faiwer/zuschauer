@@ -34,7 +34,6 @@ pub async fn run(sensor: &'static Sensor, path: PathBuf) {
                 );
                 store.set_error(entity.clone(), None);
                 drop(store);
-                eprintln!("temperature {}: {celsius:.1}C", sensor.name);
                 if let Some(alert) = &sensor.alert {
                     observe(alert, Observation::Value(celsius));
                 }

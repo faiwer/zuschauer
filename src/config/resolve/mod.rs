@@ -5,6 +5,7 @@
 //! - `root`: `resolve()` and the small top-level sections
 //! - `host`: CPU, memory, storage and temperature
 //! - `apps`: apps with their health checks, containers and certificates
+//! - `services`: apps' services and their shared settings
 //! - `alerts`: alert IDs, labels and dependencies
 //! - `notifiers`: notifiers
 //! - `every`: the `every` interval every section has
@@ -15,5 +16,6 @@ mod every;
 mod host;
 mod notifiers;
 mod root;
+mod services;
 
 pub use root::resolve;

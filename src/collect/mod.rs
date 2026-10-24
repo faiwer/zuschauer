@@ -4,7 +4,7 @@
 //! - `spawn`: starts all configured collectors
 //! - `host`: CPU, memory, storage, temperature
 //! - `docker`: containers (Docker or Podman)
-//! - `apps`: HTTP(S) health checks and certificates
+//! - `apps`: HTTP(S) health checks, certificates and services
 
 mod apps;
 mod docker;

@@ -57,6 +57,7 @@ pub(super) fn threshold_alert<T: Copy + Into<f32> + fmt::Display>(
             resolve_below: raw.resolve_below.map(Into::into),
             unit,
         }),
+        restarts: None,
     }
 }
 
@@ -83,6 +84,7 @@ pub(super) fn state_alert(
         after: raw.duration.map_or(Duration::ZERO, Dur::get),
         parents: raw.depends_on.unwrap_or_default(),
         threshold: None,
+        restarts: None,
     }
 }
 

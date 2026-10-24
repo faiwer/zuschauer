@@ -18,6 +18,7 @@ pub struct Config {
     /// `None` when containers aren't monitored.
     pub docker: Option<DockerConfig>,
     pub certificates: CertificatesConfig,
+    pub services: ServicesConfig,
     /// Sorted by ID.
     pub apps: Vec<App>,
     /// Sorted by name.
@@ -52,6 +53,11 @@ pub struct CertificatesConfig {
 }
 
 #[derive(Debug)]
+pub struct ServicesConfig {
+    pub every: Duration,
+}
+
+#[derive(Debug)]
 pub struct App {
     pub id: String,
     pub name: String,
@@ -59,6 +65,21 @@ pub struct App {
     pub containers: Vec<AppContainer>,
     pub health_checks: Vec<HealthCheck>,
     pub certificates: Vec<AppCertificate>,
+    pub services: Vec<AppService>,
+}
+
+#[derive(Debug)]
+pub struct AppService {
+    /// A systemd unit on Linux (`.service` optional), a launchd label on
+    /// macOS (`system/` or `gui/<uid>/` optional).
+    pub name: String,
+    pub alert: Option<Alert>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RestartLimit {
+    pub above: u32,
+    pub within: Duration,
 }
 
 #[derive(Debug)]
@@ -137,6 +158,8 @@ pub struct Alert {
     pub parents: Vec<String>,
     /// `None` for alerts on something down, gone or expiring.
     pub threshold: Option<Threshold>,
+    /// Services only: too many restarts fire it without waiting for `after`.
+    pub restarts: Option<RestartLimit>,
 }
 
 #[derive(Debug)]
@@ -164,7 +187,8 @@ impl Config {
             let checks = app.health_checks.iter().map(|c| &c.alert);
             let containers = app.containers.iter().map(|c| &c.alert);
             let certificates = app.certificates.iter().map(|c| &c.alert);
-            checks.chain(containers).chain(certificates)
+            let services = app.services.iter().map(|s| &s.alert);
+            checks.chain(containers).chain(certificates).chain(services)
         });
         [&host.cpu.alert, &host.memory.alert]
             .into_iter()
@@ -183,6 +207,7 @@ impl Config {
             alerts.extend(app.health_checks.iter_mut().map(|c| &mut c.alert));
             alerts.extend(app.containers.iter_mut().map(|c| &mut c.alert));
             alerts.extend(app.certificates.iter_mut().map(|c| &mut c.alert));
+            alerts.extend(app.services.iter_mut().map(|s| &mut s.alert));
         }
         alerts.into_iter().flatten().collect()
     }
@@ -222,6 +247,7 @@ impl fmt::Display for Config {
             Dur::from(self.certificates.every),
             Dur::from(self.certificates.warn_before),
         )?;
+        writeln!(f, "services: every {}", Dur::from(self.services.every))?;
         for app in &self.apps {
             write!(f, "apps.{}: {}", app.id, app.name)?;
             if !app.containers.is_empty() {
@@ -235,6 +261,10 @@ impl fmt::Display for Config {
                     .map(|c| c.target.to_string())
                     .collect();
                 write!(f, ", certificates {}", hosts.join(", "))?;
+            }
+            if !app.services.is_empty() {
+                let services: Vec<_> = app.services.iter().map(|s| s.name.as_str()).collect();
+                write!(f, ", services {}", services.join(", "))?;
             }
             writeln!(f)?;
             for check in &app.health_checks {
@@ -281,6 +311,14 @@ impl fmt::Display for Alert {
         }
         if !self.after.is_zero() {
             write!(f, ", for {}", Dur::from(self.after))?;
+        }
+        if let Some(limit) = self.restarts {
+            write!(
+                f,
+                ", or more than {} restarts within {}",
+                limit.above,
+                Dur::from(limit.within)
+            )?;
         }
         if !self.parents.is_empty() {
             write!(f, ", depends on {}", self.parents.join(", "))?;

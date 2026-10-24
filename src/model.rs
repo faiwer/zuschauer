@@ -23,6 +23,11 @@ pub enum EntityId {
         app: String,
         host: String,
     },
+    /// An app's systemd or launchd service, by app ID and name.
+    Service {
+        app: String,
+        service: String,
+    },
 }
 
 /// Which metric of an entity a series holds.
@@ -40,6 +45,8 @@ pub enum MetricKind {
     Temperature,
     /// Milliseconds until a successful response's headers arrived.
     Latency,
+    /// Restarts within the service's restart window.
+    Restarts,
 }
 
 /// State of an entity that can come and go, or fail.
@@ -52,7 +59,8 @@ pub enum Status {
     Gone {
         since: Timestamp,
     },
-    /// Health checks. `since` is the first attempt of the current streak.
+    /// Health checks and services. `since` is the first attempt of the
+    /// current streak.
     Up {
         since: Timestamp,
     },

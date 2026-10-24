@@ -1,6 +1,6 @@
 use crate::config::Config;
 
-use super::apps::{certificate, health};
+use super::apps::{certificate, health, services};
 use super::{docker, host};
 
 pub fn spawn(config: &'static Config) {
@@ -15,5 +15,8 @@ pub fn spawn(config: &'static Config) {
         for watched in &app.certificates {
             tokio::spawn(certificate::run(app, watched, &config.certificates));
         }
+    }
+    if config.apps.iter().any(|app| !app.services.is_empty()) {
+        tokio::spawn(services::run(&config.services, &config.apps));
     }
 }

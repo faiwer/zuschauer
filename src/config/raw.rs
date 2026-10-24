@@ -20,6 +20,7 @@ pub struct RawConfig {
     pub host: Option<RawHost>,
     pub docker: Option<RawDocker>,
     pub certificates: Option<RawCertificates>,
+    pub services: Option<RawServices>,
     /// Keyed by app ID.
     pub apps: Option<BTreeMap<String, RawApp>>,
     /// Keyed by name.
@@ -49,6 +50,13 @@ pub struct RawCertificates {
     pub warn_before: Option<Dur>,
 }
 
+/// Shared by all apps' `services`.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawServices {
+    pub every: Option<Dur>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RawApp {
@@ -58,6 +66,35 @@ pub struct RawApp {
     pub health_checks: Option<Vec<RawHealthCheck>>,
     /// Keyed by `host[:port]`.
     pub certificates: Option<BTreeMap<String, RawWatched>>,
+    /// Keyed by systemd unit on Linux, launchd label on macOS.
+    pub services: Option<BTreeMap<String, RawService>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawService {
+    pub alert: Option<RawServiceAlert>,
+}
+
+/// A `RawAlert` that also fires, without waiting for `for`, when the service
+/// restarts too often.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawServiceAlert {
+    #[serde(rename = "for")]
+    pub duration: Option<Dur>,
+    pub restarts: Option<RawRestarts>,
+    pub severity: Option<Severity>,
+    pub id: Option<String>,
+    pub depends_on: Option<Vec<String>>,
+}
+
+/// More than `above` restarts within `within`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawRestarts {
+    pub above: u32,
+    pub within: Dur,
 }
 
 /// Something that's either fine or not, with nothing else to configure.

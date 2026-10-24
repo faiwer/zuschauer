@@ -4,7 +4,7 @@ use axum::extract::State;
 use maud::{DOCTYPE, Markup, html};
 
 use crate::alerts;
-use crate::config::{App, Config};
+use crate::config::{App, Config, Dur, RestartLimit};
 use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp, now};
 use crate::store::{Entity, store};
 
@@ -37,11 +37,20 @@ struct CertificateRow {
     error: Option<String>,
 }
 
+struct ServiceRow {
+    name: &'static str,
+    status: Option<Status>,
+    /// Within the restart window, when the alert sets one.
+    restarts: Option<(Sample, RestartLimit)>,
+    error: Option<String>,
+}
+
 struct AppView {
     name: &'static str,
     checks: Vec<CheckRow>,
     containers: Vec<ContainerRow>,
     certificates: Vec<CertificateRow>,
+    services: Vec<ServiceRow>,
 }
 
 pub async fn index(State(config): State<&'static Config>) -> Markup {
@@ -145,6 +154,19 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                                             td { "pending" }
                                             td { "—" }
                                         }
+                                    }
+                                    td { (row.error.as_deref().unwrap_or_default()) }
+                                }
+                            }
+                            @for row in &app.services {
+                                tr {
+                                    th { (row.name) }
+                                    td { (status(row.status)) }
+                                    @match row.restarts {
+                                        Some((sample, limit)) => td {
+                                            (format!("{:.0}", sample.value)) " restarts in " (Dur::from(limit.within).to_string())
+                                        },
+                                        None => td { "—" },
                                     }
                                     td { (row.error.as_deref().unwrap_or_default()) }
                                 }
@@ -277,11 +299,31 @@ fn app_view(app: &'static App) -> AppView {
             }
         })
         .collect();
+    let services = app
+        .services
+        .iter()
+        .map(|service| {
+            let entity = store.entity(&EntityId::Service {
+                app: app.id.clone(),
+                service: service.name.clone(),
+            });
+            let restarts = entity
+                .and_then(|e| e.series(MetricKind::Restarts))
+                .and_then(|s| s.latest());
+            ServiceRow {
+                name: &service.name,
+                status: entity.and_then(Entity::status),
+                restarts: restarts.zip(service.alert.as_ref().and_then(|a| a.restarts)),
+                error: entity.and_then(Entity::error).map(str::to_owned),
+            }
+        })
+        .collect();
     AppView {
         name: &app.name,
         checks,
         containers,
         certificates,
+        services,
     }
 }
 

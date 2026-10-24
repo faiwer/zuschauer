@@ -39,11 +39,6 @@ pub async fn run(mount: &'static Mount) {
             continue;
         };
         store().push(entity.clone(), MetricKind::Storage, Sample::now(percent));
-        eprintln!(
-            "storage {}: {percent:.1}% ({} GiB available)",
-            mount.path.display(),
-            (blocks.available * blocks.block_size) >> 30
-        );
         if let Some(alert) = &mount.metric.alert {
             observe(alert, Observation::Value(percent));
         }

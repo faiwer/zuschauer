@@ -25,7 +25,6 @@ pub async fn run(app: &'static App, check: &'static HealthCheck) {
         ticker.tick().await;
         let outcome = attempt(check).await.map(|latency| {
             let ms = latency.as_secs_f32() * 1000.0;
-            eprintln!("app {label}: up, responded in {ms:.0} ms");
             store().push(entity.clone(), MetricKind::Latency, Sample::now(ms));
         });
         if let Err(error) = &outcome {

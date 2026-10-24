@@ -2,12 +2,13 @@ use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
 use crate::config::raw::{RawApp, RawHealthCheck};
-use crate::config::resolved::{App, AppCertificate, AppContainer, HealthCheck};
+use crate::config::resolved::{App, AppCertificate, AppContainer, HealthCheck, ServicesConfig};
 use crate::config::types::Dur;
 use crate::http::HostPort;
 
 use super::alerts::{AlertNames, state_alert, watched_alert};
 use super::every::{DEFAULT_EVERY, every};
+use super::services::app_services;
 
 /// Capped at the check's `every` when that's shorter.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -16,14 +17,21 @@ const DEFAULT_EXPECT_CODE: u16 = 200;
 pub(super) fn apps(
     raw: BTreeMap<String, RawApp>,
     docker: bool,
+    services: &ServicesConfig,
     errors: &mut Vec<String>,
 ) -> Vec<App> {
     raw.into_iter()
-        .map(|(id, raw_app)| app(id, raw_app, docker, errors))
+        .map(|(id, raw_app)| app(id, raw_app, docker, services, errors))
         .collect()
 }
 
-fn app(id: String, raw: RawApp, docker: bool, errors: &mut Vec<String>) -> App {
+fn app(
+    id: String,
+    raw: RawApp,
+    docker: bool,
+    services_config: &ServicesConfig,
+    errors: &mut Vec<String>,
+) -> App {
     let at = format!("apps.{id}");
     if id.is_empty() {
         errors.push("apps: an app ID can't be empty".to_owned());
@@ -77,10 +85,23 @@ fn app(id: String, raw: RawApp, docker: bool, errors: &mut Vec<String>) -> App {
         });
     }
 
+    let services = app_services(
+        &at,
+        &id,
+        &name,
+        raw.services.unwrap_or_default(),
+        services_config,
+        errors,
+    );
+
     let raw_checks = raw.health_checks.unwrap_or_default();
-    if raw_checks.is_empty() && containers.is_empty() && certificates.is_empty() {
+    if raw_checks.is_empty()
+        && containers.is_empty()
+        && certificates.is_empty()
+        && services.is_empty()
+    {
         errors.push(format!(
-            "{at}: nothing to monitor, add healthChecks, containers or certificates"
+            "{at}: nothing to monitor, add healthChecks, containers, certificates or services"
         ));
     }
     let mut check_names = HashSet::new();
@@ -106,6 +127,7 @@ fn app(id: String, raw: RawApp, docker: bool, errors: &mut Vec<String>) -> App {
         containers,
         health_checks,
         certificates,
+        services,
     }
 }
 

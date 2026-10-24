@@ -17,8 +17,8 @@ mod types;
 
 pub use load::load;
 pub use resolved::{
-    Alert, App, AppCertificate, CertificatesConfig, Config, DockerConfig, HealthCheck, HostConfig,
-    Metric, Mount, Notifier, NotifierKind, Ntfy, Sensor,
+    Alert, App, AppCertificate, AppService, CertificatesConfig, Config, DockerConfig, HealthCheck,
+    HostConfig, Metric, Mount, Notifier, NotifierKind, Ntfy, RestartLimit, Sensor, ServicesConfig,
 };
 pub use types::{Dur, Severity};
 #[expect(unused_imports, reason = "public API, not consumed yet")]

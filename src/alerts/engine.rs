@@ -1,4 +1,5 @@
-//! An alert is OK, pending (its problem hasn't lasted `after` yet) or firing.
+//! An alert is OK, pending (its problem hasn't lasted `after` yet, unless
+//! it's urgent) or firing.
 //! Only the switches to firing and back to OK are reported, so a problem
 //! that clears while pending is never announced.
 
@@ -15,6 +16,9 @@ pub enum Observation {
     Fine,
     /// Down, gone, expiring: why it's a problem.
     Problem(String),
+    /// A problem measured over its own window, like too many restarts within
+    /// an hour, so it fires without waiting for `after`.
+    Urgent(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -64,6 +68,7 @@ impl Engine {
             fired: false,
         });
 
+        let is_urgent = matches!(observation, Observation::Urgent(_));
         let detail = match observation {
             Observation::Value(value) => alert
                 .threshold
@@ -71,7 +76,7 @@ impl Engine {
                 .filter(|t| t.exceeded(value, state.problem.is_some()))
                 .map(|t| format!("{value:.1}{unit}, above {}{unit}", t.above, unit = t.unit)),
             Observation::Fine => None,
-            Observation::Problem(detail) => Some(detail),
+            Observation::Problem(detail) | Observation::Urgent(detail) => Some(detail),
         };
 
         let Some(detail) = detail else {
@@ -87,7 +92,7 @@ impl Engine {
         });
         problem.detail = detail;
         let lasted = at.saturating_sub(problem.since);
-        if state.fired || blocked || u64::from(lasted) < alert.after.as_secs() {
+        if state.fired || blocked || (!is_urgent && u64::from(lasted) < alert.after.as_secs()) {
             return None;
         }
         state.fired = true;
@@ -125,6 +130,7 @@ mod tests {
             after: Duration::from_secs(after),
             parents: parents.iter().map(|p| (*p).to_owned()).collect(),
             threshold,
+            restarts: None,
         }))
     }
 
@@ -174,6 +180,21 @@ mod tests {
         assert_eq!(engine.observe(check, down(), 40), None);
         assert_eq!(engine.observe(check, down(), 90), None);
         assert_eq!(engine.observe(check, down(), 100), fired(40, "down"));
+    }
+
+    #[test]
+    fn an_urgent_problem_skips_the_wait() {
+        let service = alert("service", 60, None, &[]);
+        let mut engine = Engine::new();
+        let down = || Observation::Problem("down".to_owned());
+        assert_eq!(engine.observe(service, down(), 0), None);
+        // The streak continues, so `since` is the first failure.
+        assert_eq!(
+            engine.observe(service, Observation::Urgent("restarts".to_owned()), 10),
+            fired(0, "restarts")
+        );
+        assert_eq!(engine.observe(service, down(), 20), None);
+        assert!(engine.observe(service, Observation::Fine, 30).is_some());
     }
 
     #[test]

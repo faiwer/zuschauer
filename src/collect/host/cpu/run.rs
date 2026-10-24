@@ -39,7 +39,6 @@ pub async fn run(config: &'static Metric) {
             && let Some(percent) = usage(prev, cur)
         {
             store().push(EntityId::Host, MetricKind::Cpu, Sample::now(percent));
-            eprintln!("cpu: {percent:.1}%");
             if let Some(alert) = &config.alert {
                 observe(alert, Observation::Value(percent));
             }
