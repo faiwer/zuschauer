@@ -2,7 +2,7 @@ use crate::model::Timestamp;
 
 /// A local date and time to the minute, as a wall clock shows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) struct Civil {
+pub struct Civil {
     pub year: i32,
     /// 1..=12
     pub month: u32,

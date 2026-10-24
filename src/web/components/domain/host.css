@@ -1,0 +1,46 @@
+.panel-content.host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.host-gauges {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.host-readings {
+  align-self: start;
+  flex: 1;
+  width: auto;
+  min-width: 16rem;
+}
+
+.host-readings td {
+  vertical-align: middle;
+}
+
+.host-reading-icon {
+  width: 1%;
+}
+
+/* A block icon has no baseline to sit on, so the cell centers it. */
+.host-reading-icon .icon {
+  display: flex;
+}
+
+.host-reading-error .host-reading-label {
+  color: var(--level-critical);
+}
+
+.host-reading-value {
+  text-align: right;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.tint-text {
+    color: var(--tint);
+  }
+}

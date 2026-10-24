@@ -5,11 +5,11 @@ use crate::cron::format_local;
 use crate::jobs::{self, JobState, Verdict};
 use crate::model::now;
 
-use super::super::format::{ago, span};
+use super::super::super::ui::{ago, span};
 
 pub struct JobRow {
-    name: &'static str,
-    state: Option<(JobState, Verdict)>,
+    pub(super) name: &'static str,
+    pub(super) state: Option<(JobState, Verdict)>,
 }
 
 pub fn job_row(app: &App, job: &'static AppJob) -> JobRow {
@@ -24,8 +24,8 @@ pub fn job_row(app: &App, job: &'static AppJob) -> JobRow {
 
 pub fn render_job_row(row: &JobRow) -> Markup {
     html! {
-        tr {
-            th { (row.name) }
+        tr.table-row {
+            td.highlight { (row.name) }
             @if let Some((state, verdict)) = &row.state {
                 (render_job_cells(state, *verdict))
             } @else {

@@ -4,13 +4,13 @@ use crate::config::{App, HealthCheck};
 use crate::model::{EntityId, MetricKind, Sample, Status};
 use crate::store::{Entity, Store};
 
-use super::super::format::status_label;
+use super::super::super::ui::status_label;
 
 pub struct CheckRow {
-    name: &'static str,
-    status: Option<Status>,
-    latency: Option<Sample>,
-    error: Option<String>,
+    pub(super) name: &'static str,
+    pub(super) status: Option<Status>,
+    pub(super) latency: Option<Sample>,
+    pub(super) error: Option<String>,
 }
 
 pub fn check_row(store: &Store, app: &App, check: &'static HealthCheck) -> CheckRow {
@@ -30,8 +30,8 @@ pub fn check_row(store: &Store, app: &App, check: &'static HealthCheck) -> Check
 
 pub fn render_check_row(row: &CheckRow) -> Markup {
     html! {
-        tr {
-            th { (row.name) }
+        tr.table-row {
+            td.highlight { (row.name) }
             td { (status_label(row.status)) }
             @match (row.status, row.latency) {
                 (Some(Status::Up { .. }), Some(s)) => td { "responded in " (format!("{:.0}", s.value)) " ms" },

@@ -4,14 +4,14 @@ use crate::config::{App, AppService, Dur, RestartLimit};
 use crate::model::{EntityId, MetricKind, Sample, Status};
 use crate::store::{Entity, Store};
 
-use super::super::format::status_label;
+use super::super::super::ui::status_label;
 
 pub struct ServiceRow {
-    name: &'static str,
-    status: Option<Status>,
+    pub(super) name: &'static str,
+    pub(super) status: Option<Status>,
     /// Within the restart window, when the alert sets one.
-    restarts: Option<(Sample, RestartLimit)>,
-    error: Option<String>,
+    pub(super) restarts: Option<(Sample, RestartLimit)>,
+    pub(super) error: Option<String>,
 }
 
 pub fn service_row(store: &Store, app: &App, service: &'static AppService) -> ServiceRow {
@@ -32,8 +32,8 @@ pub fn service_row(store: &Store, app: &App, service: &'static AppService) -> Se
 
 pub fn render_service_row(row: &ServiceRow) -> Markup {
     html! {
-        tr {
-            th { (row.name) }
+        tr.table-row {
+            td.highlight { (row.name) }
             td { (status_label(row.status)) }
             @match row.restarts {
                 Some((sample, limit)) => td {

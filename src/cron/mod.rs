@@ -10,5 +10,5 @@ mod civil;
 mod field;
 mod schedule;
 
-pub use civil::format_local;
+pub use civil::{Civil, format_local};
 pub use schedule::Schedule;

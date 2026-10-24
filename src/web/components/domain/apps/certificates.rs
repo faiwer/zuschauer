@@ -4,15 +4,15 @@ use crate::config::{App, AppCertificate, CertificatesConfig};
 use crate::model::{EntityId, Status, Timestamp, now};
 use crate::store::{Entity, Store};
 
-use super::super::format::{ago, until};
+use super::super::super::ui::{ago, until};
 
 pub struct CertificateRow {
-    host: String,
-    status: Option<Status>,
-    expires_at: Option<Timestamp>,
+    pub(super) host: String,
+    pub(super) status: Option<Status>,
+    pub(super) expires_at: Option<Timestamp>,
     /// Expires within `certificates.warnBefore`.
-    expiring: bool,
-    error: Option<String>,
+    pub(super) expiring: bool,
+    pub(super) error: Option<String>,
 }
 
 pub fn certificate_row(
@@ -39,8 +39,8 @@ pub fn certificate_row(
 
 pub fn render_certificate_row(row: &CertificateRow) -> Markup {
     html! {
-        tr {
-            th { (row.host) }
+        tr.table-row {
+            td.highlight { (row.host) }
             @match (row.status, row.expires_at) {
                 (Some(Status::Up { .. }), Some(at)) if row.expiring => {
                     td { strong { "expiring" } }
