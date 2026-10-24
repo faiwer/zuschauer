@@ -12,7 +12,9 @@ pub async fn report(
     let token = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.strip_prefix("Bearer "));
+        .and_then(|value| value.split_once(' '))
+        .filter(|(scheme, _)| scheme.eq_ignore_ascii_case("bearer"))
+        .map(|(_, token)| token.trim());
     match jobs::report(&app, &job, &event, token) {
         Ok(()) => (StatusCode::OK, "ok\n"),
         Err(ReportError::NotFound) => (
