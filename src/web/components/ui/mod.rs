@@ -6,6 +6,7 @@
 //! - `gauge`: a ring filled to a percentage
 //! - `icon`: the SVG icons from `web/icons`, as a sprite and references to it
 //! - `level`: how good something looks, and its tint
+//! - `logo`: the colored logo, served as the favicon and shown from there
 //! - `format`: durations, sizes and statuses as text
 
 mod empty;
@@ -14,6 +15,7 @@ mod frame;
 mod gauge;
 mod icon;
 mod level;
+mod logo;
 mod panel;
 
 pub use empty::{Tone, render_empty};
@@ -22,4 +24,5 @@ pub use frame::render_frame;
 pub use gauge::render_gauge;
 pub use icon::{Icon, icon, tinted_icon};
 pub use level::Level;
+pub use logo::{LOGO_SVG, render_logo};
 pub use panel::render_panel;

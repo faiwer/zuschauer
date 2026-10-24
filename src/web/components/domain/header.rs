@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::heartbeat;
 use crate::model::{Timestamp, now};
 
-use super::super::ui::{Icon, Level, date_time, icon, tinted_icon};
+use super::super::ui::{Icon, Level, date_time, icon, render_logo, tinted_icon};
 use super::apps::{app_containers, app_level, app_views};
 use super::containers::ContainerRow;
 use super::heartbeat::{HeartbeatDot, heartbeat_dot, render_heartbeat_dot};
@@ -68,7 +68,7 @@ pub fn render_header(view: &HeaderView) -> Markup {
     html! {
         header.site-header {
             div.site-brand {
-                span.site-icon { (icon(Icon::Eye)) }
+                span.site-icon { (render_logo()) }
                 div.site-title {
                     h1 {
                         "Zuschauer"

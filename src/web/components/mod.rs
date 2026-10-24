@@ -12,4 +12,4 @@ pub use domain::{
     app_views, container_rows, header_view, host_view, render_alerts, render_apps,
     render_containers, render_header, render_host,
 };
-pub use ui::render_frame;
+pub use ui::{LOGO_SVG, render_frame};

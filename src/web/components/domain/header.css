@@ -14,8 +14,10 @@
   padding: 0 var(--padding-x);
 }
 
+/* Flex drops the line box, so the span is exactly the icon's square. */
 .site-icon {
-  font-size: 2rem;
+  display: flex;
+  font-size: 3rem;
 }
 
 .site-title h1 {

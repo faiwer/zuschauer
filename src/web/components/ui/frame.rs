@@ -17,6 +17,7 @@ pub fn render_frame(title: &str, content: Markup) -> Markup {
                 meta name="format-detection" content="telephone=no, date=no";
                 meta name="mobile-web-app-capable" content="yes";
                 meta name="apple-mobile-web-app-title" content="Zuschauer";
+                link rel="icon" type="image/svg+xml" href="/favicon.svg";
                 title { (title) }
                 style {
                     @for css in STYLES { (PreEscaped(css)) }
