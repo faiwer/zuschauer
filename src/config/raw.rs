@@ -68,6 +68,19 @@ pub struct RawApp {
     pub certificates: Option<BTreeMap<String, RawWatched>>,
     /// Keyed by systemd unit on Linux, launchd label on macOS.
     pub services: Option<BTreeMap<String, RawService>>,
+    /// Keyed by name, as the job's URLs use it.
+    pub jobs: Option<BTreeMap<String, RawJob>>,
+}
+
+/// A scheduled job that reports its runs over HTTP.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawJob {
+    pub token: String,
+    /// A cron expression.
+    pub schedule: String,
+    pub max_duration: Option<Dur>,
+    pub alert: Option<RawAlert>,
 }
 
 #[derive(Debug, Default, Deserialize)]

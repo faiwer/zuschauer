@@ -2,8 +2,10 @@
 //!
 //! - `server`: router and listener
 //! - `pages`: page handlers
+//! - `jobs`: the endpoint jobs report their runs to
 //! - `svg`: sparklines
 
+mod jobs;
 mod pages;
 mod server;
 mod svg;

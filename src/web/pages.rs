@@ -5,6 +5,8 @@ use maud::{DOCTYPE, Markup, html};
 
 use crate::alerts;
 use crate::config::{App, Config, Dur, RestartLimit};
+use crate::cron::format_local;
+use crate::jobs::{self, JobState};
 use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp, now};
 use crate::store::{Entity, store};
 
@@ -45,12 +47,18 @@ struct ServiceRow {
     error: Option<String>,
 }
 
+struct JobRow {
+    name: &'static str,
+    state: Option<JobState>,
+}
+
 struct AppView {
     name: &'static str,
     checks: Vec<CheckRow>,
     containers: Vec<ContainerRow>,
     certificates: Vec<CertificateRow>,
     services: Vec<ServiceRow>,
+    jobs: Vec<JobRow>,
 }
 
 pub async fn index(State(config): State<&'static Config>) -> Markup {
@@ -171,6 +179,16 @@ pub async fn index(State(config): State<&'static Config>) -> Markup {
                                     td { (row.error.as_deref().unwrap_or_default()) }
                                 }
                             }
+                            @for row in &app.jobs {
+                                tr {
+                                    th { (row.name) }
+                                    @if let Some(state) = &row.state {
+                                        (job_cells(state))
+                                    } @else {
+                                        td colspan="3" { "—" }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -192,6 +210,37 @@ fn container_cells(row: &ContainerRow) -> Markup {
                 td { (status(row.status)) }
                 td { (row.cpu.map_or("—".to_owned(), |s| format!("CPU {:.1}%", s.value))) }
                 td { (row.memory.map_or("—".to_owned(), |s| format!("mem {}", mib(s.value)))) }
+            }
+        }
+    }
+}
+
+fn job_cells(state: &JobState) -> Markup {
+    let at = now();
+    let late = state.running.is_none() && state.next_due.is_some_and(|due| due <= at);
+    html! {
+        td {
+            @match (state.running, state.last) {
+                (Some(run), _) => { "running " (ago(run.started)) }
+                _ if late => strong { "late" },
+                (None, Some(last)) if !last.ok => strong { "failed" },
+                (None, Some(_)) => "ok",
+                (None, None) => "waiting",
+            }
+        }
+        td {
+            @match state.last {
+                Some(last) => {
+                    (if last.ok { "succeeded " } else { "failed " }) (ago(last.finished)) " ago, took "
+                    (span(last.finished.saturating_sub(last.started)))
+                }
+                None => "no runs yet",
+            }
+        }
+        td {
+            @match state.next_due {
+                Some(due) => { "due " (format_local(due)) }
+                None => "never due",
             }
         }
     }
@@ -318,12 +367,21 @@ fn app_view(app: &'static App) -> AppView {
             }
         })
         .collect();
+    let jobs = app
+        .jobs
+        .iter()
+        .map(|job| JobRow {
+            name: &job.name,
+            state: jobs::state(&app.id, &job.name),
+        })
+        .collect();
     AppView {
         name: &app.name,
         checks,
         containers,
         certificates,
         services,
+        jobs,
     }
 }
 

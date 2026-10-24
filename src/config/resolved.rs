@@ -5,7 +5,9 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::cron::{Schedule, format_local};
 use crate::http::{HostPort, Url};
+use crate::model::now;
 
 use super::types::{Dur, Severity};
 
@@ -66,6 +68,20 @@ pub struct App {
     pub health_checks: Vec<HealthCheck>,
     pub certificates: Vec<AppCertificate>,
     pub services: Vec<AppService>,
+    pub jobs: Vec<AppJob>,
+}
+
+#[derive(Debug)]
+pub struct AppJob {
+    /// Letters, digits, `.`, `_` and `-`, so it fits in a URL as it is.
+    pub name: String,
+    /// Reports must carry it as `Authorization: Bearer <token>`.
+    pub token: String,
+    pub schedule: Schedule,
+    /// A run that hasn't finished after this is hung. `None`: it must
+    /// finish before the next run is due.
+    pub max_duration: Option<Duration>,
+    pub alert: Option<Alert>,
 }
 
 #[derive(Debug)]
@@ -188,7 +204,12 @@ impl Config {
             let containers = app.containers.iter().map(|c| &c.alert);
             let certificates = app.certificates.iter().map(|c| &c.alert);
             let services = app.services.iter().map(|s| &s.alert);
-            checks.chain(containers).chain(certificates).chain(services)
+            let jobs = app.jobs.iter().map(|j| &j.alert);
+            checks
+                .chain(containers)
+                .chain(certificates)
+                .chain(services)
+                .chain(jobs)
         });
         [&host.cpu.alert, &host.memory.alert]
             .into_iter()
@@ -208,6 +229,7 @@ impl Config {
             alerts.extend(app.containers.iter_mut().map(|c| &mut c.alert));
             alerts.extend(app.certificates.iter_mut().map(|c| &mut c.alert));
             alerts.extend(app.services.iter_mut().map(|s| &mut s.alert));
+            alerts.extend(app.jobs.iter_mut().map(|j| &mut j.alert));
         }
         alerts.into_iter().flatten().collect()
     }
@@ -269,6 +291,9 @@ impl fmt::Display for Config {
             writeln!(f)?;
             for check in &app.health_checks {
                 writeln!(f, "apps.{}.{}: {check}", app.id, check.name)?;
+            }
+            for job in &app.jobs {
+                writeln!(f, "apps.{}.jobs.{}: {job}", app.id, job.name)?;
             }
         }
         for notifier in &self.notifiers {
@@ -341,6 +366,24 @@ impl fmt::Display for HealthCheck {
             write!(f, ", content type {content_type}")?;
         }
         Ok(())
+    }
+}
+
+impl fmt::Display for AppJob {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "schedule \"{}\"", self.schedule)?;
+        match self.max_duration {
+            Some(max) => write!(f, ", runs up to {}", Dur::from(max))?,
+            None => write!(f, ", runs until the next is due")?,
+        }
+        let mut due = Some(now());
+        let next: Vec<String> = (0..3)
+            .map_while(|_| {
+                due = self.schedule.next_after(due?);
+                due.map(format_local)
+            })
+            .collect();
+        write!(f, ", next due {}", next.join(", "))
     }
 }
 

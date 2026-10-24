@@ -3,3 +3,6 @@
 .vscode
 *.jsonc
 *.json
+/deploy.sh
+todo.md
+*.code-workspace

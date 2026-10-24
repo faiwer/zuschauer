@@ -9,15 +9,15 @@ use crate::config::Alert;
 use crate::model::Timestamp;
 
 /// What a collector saw.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Observation {
     /// A reading, checked against the alert's threshold.
     Value(f32),
     Fine,
     /// Down, gone, expiring: why it's a problem.
     Problem(String),
-    /// A problem measured over its own window, like too many restarts within
-    /// an hour, so it fires without waiting for `after`.
+    /// A problem that's certain already, like too many restarts within an
+    /// hour or a failed job, so it fires without waiting for `after`.
     Urgent(String),
 }
 

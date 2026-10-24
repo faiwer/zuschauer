@@ -1,7 +1,9 @@
 mod alerts;
 mod collect;
 mod config;
+mod cron;
 mod http;
+mod jobs;
 mod model;
 mod notify;
 mod store;
@@ -55,6 +57,7 @@ fn main() -> ExitCode {
 async fn run(config: &'static config::Config) -> ExitCode {
     notify::spawn(config);
     collect::spawn(config);
+    jobs::spawn(&config.apps);
     match web::serve(config).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

@@ -6,6 +6,7 @@
 //! - `host`: CPU, memory, storage and temperature
 //! - `apps`: apps with their health checks, containers and certificates
 //! - `services`: apps' services and their shared settings
+//! - `jobs`: apps' scheduled jobs
 //! - `alerts`: alert IDs, labels and dependencies
 //! - `notifiers`: notifiers
 //! - `every`: the `every` interval every section has
@@ -14,6 +15,7 @@ mod alerts;
 mod apps;
 mod every;
 mod host;
+mod jobs;
 mod notifiers;
 mod root;
 mod services;
