@@ -14,6 +14,7 @@ pub async fn serve(config: &'static Config) -> io::Result<()> {
     let app = Router::new()
         .route("/", get(pages::index))
         .route("/favicon.svg", get(pages::favicon))
+        .route("/entity/{kind}/{id}", get(pages::entity))
         .route("/jobs/{app}/{job}/{event}", post(jobs::report))
         .with_state(config);
     let listener = TcpListener::bind(config.listen).await?;

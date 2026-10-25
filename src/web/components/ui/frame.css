@@ -23,6 +23,8 @@
   --toast-warning-border: #5a3d1c;
   --tooltip-bg: #2d3e53;
   --tooltip-border: #647b91;
+  --row-hover-bg: #1a2736;
+  --backdrop: rgb(0 0 0 / 60%);
   --padding-x: 1rem;
   --panel-shadow: 0.125rem 0.25rem 0.0625rem black;
 }

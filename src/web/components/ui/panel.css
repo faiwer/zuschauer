@@ -34,6 +34,14 @@
 
 .table-row {
   font-size: 0.9rem;
+
+  &.clickable {
+    cursor: pointer;
+
+    &:hover {
+      background: var(--row-hover-bg);
+    }
+  }
 }
 
 .panel-title {

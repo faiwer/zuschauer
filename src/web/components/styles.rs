@@ -6,6 +6,7 @@ pub const STYLES: &[&str] = &[
     include_str!("ui/empty.css"),
     include_str!("ui/gauge.css"),
     include_str!("ui/tooltip.css"),
+    include_str!("ui/modal.css"),
     include_str!("domain/header.css"),
     include_str!("domain/alerts.css"),
     include_str!("domain/containers.css"),

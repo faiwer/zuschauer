@@ -1,0 +1,42 @@
+/* Opened by `entity-dialog.js`. */
+.modal {
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.7rem;
+  box-shadow: var(--panel-shadow);
+  color: var(--text-secondary);
+
+  &::backdrop {
+    background: var(--backdrop);
+  }
+}
+
+.modal-body {
+  padding: 1rem var(--padding-x);
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0.5rem;
+  color: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--row-hover-bg);
+  }
+}
