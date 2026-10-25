@@ -3,6 +3,7 @@ name = "zuschauer"
 version = "0.1.0"
 edition = "2024"
 repository = "https://github.com/faiwer/zuschauer"
+license-file = "LICENSE"
 
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
