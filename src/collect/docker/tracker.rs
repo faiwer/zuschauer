@@ -20,12 +20,12 @@ use crate::store::store;
 
 use super::api::Api;
 use super::cpu::cpu_percent;
-use super::reading::{Reading, read};
+use super::reading::{Reading, local_names, read};
 
 #[derive(Default)]
 pub(super) struct Tracker {
-    /// Container ID → name. Saves an API inspect call per tick on Linux, where
-    /// cgroups give only IDs.
+    /// Container ID → name. Saves a `/proc` scan or an API inspect call per
+    /// tick on Linux, where cgroups give only IDs.
     names: HashMap<String, String>,
     /// Container ID → previous CPU counter. By ID, not name: a recreated
     /// container's counter restarts from zero, so it needs a fresh baseline.
@@ -45,10 +45,20 @@ impl Tracker {
             }
         };
 
+        let unnamed = snapshot
+            .containers
+            .iter()
+            .any(|r| r.name.is_none() && !self.names.contains_key(&r.id));
+        let local = if unnamed {
+            local_names()
+        } else {
+            HashMap::new()
+        };
+
         let mut present = HashSet::new();
         let mut ids = HashSet::new();
         for reading in snapshot.containers {
-            let name = self.name_of(&reading, api).await;
+            let name = self.name_of(&reading, &local, api).await;
             let cpu = self.cpu_of(&reading, snapshot.cores);
             record(&name, &reading, cpu);
             ids.insert(reading.id);
@@ -85,10 +95,16 @@ impl Tracker {
         self.names.retain(|id, _| ids.contains(id));
     }
 
-    /// Falls back to the short ID when the name can't be looked up; the
-    /// lookup is retried on the next tick.
-    async fn name_of(&mut self, reading: &Reading, api: Option<&Api>) -> String {
-        if let Some(name) = &reading.name {
+    /// `local`: names found without the API, tried before it. Falls back to
+    /// the short ID when the name can't be looked up; the lookup is retried
+    /// on the next tick.
+    async fn name_of(
+        &mut self,
+        reading: &Reading,
+        local: &HashMap<String, String>,
+        api: Option<&Api>,
+    ) -> String {
+        if let Some(name) = reading.name.as_ref().or_else(|| local.get(&reading.id)) {
             self.names.insert(reading.id.clone(), name.clone());
             return name.clone();
         }

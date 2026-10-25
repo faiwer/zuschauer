@@ -13,6 +13,16 @@ pub(super) async fn read(_api: Option<&super::api::Api>) -> std::io::Result<Snap
     super::linux::read()
 }
 
+/// Container ID → name, found without the API.
+#[cfg(target_os = "linux")]
+pub(super) use super::conmon::names as local_names;
+
+/// Container ID → name, found without the API. macOS readings come named.
+#[cfg(target_os = "macos")]
+pub(super) fn local_names() -> std::collections::HashMap<String, String> {
+    std::collections::HashMap::new()
+}
+
 /// Everything running at one point in time.
 pub(super) struct Snapshot {
     /// Cores the containers share; CPU % is relative to all of them.
@@ -22,7 +32,8 @@ pub(super) struct Snapshot {
 
 pub(super) struct Reading {
     pub id: String,
-    /// Known up front on macOS (from the list); looked up by ID on Linux.
+    /// Known up front on macOS (from the list) and for Quadlet containers;
+    /// looked up by ID otherwise.
     pub name: Option<String>,
     pub at: Instant,
     /// Cumulative CPU time, all cores.

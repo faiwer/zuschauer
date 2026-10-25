@@ -1,7 +1,7 @@
 //! Finds running containers by walking `/sys/fs/cgroup` and reads their CPU
 //! and memory from cgroup files. No API calls: Quadlet containers are named
-//! after their systemd unit, others are resolved separately, once per new
-//! container ID.
+//! after their systemd unit, others are resolved separately (`conmon`, then
+//! the API), once per new container ID.
 
 use std::ffi::OsStr;
 use std::fs;
