@@ -97,6 +97,8 @@ zuschauer --sensors          list temperature sensors with their current reading
 - [Configuration](docs/configuration.md): the file format, durations,
   percentages and temperatures, top-level settings.
 - [Host](docs/host.md): CPU, memory, storage and temperature.
+- [Apps](docs/apps.md): containers, health checks, certificates, services and
+  jobs.
 - [Development](docs/development.md): building, testing, git hooks.
 
 ## The name
