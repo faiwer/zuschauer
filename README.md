@@ -96,6 +96,7 @@ zuschauer --sensors          list temperature sensors with their current reading
   systemd or launchd service.
 - [Configuration](docs/configuration.md): the file format, durations,
   percentages and temperatures, top-level settings.
+- [Host](docs/host.md): CPU, memory, storage and temperature.
 - [Development](docs/development.md): building, testing, git hooks.
 
 ## The name

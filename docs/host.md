@@ -3,6 +3,8 @@
 The `host` section watches the machine itself: CPU, memory, disk space and
 temperature sensors.
 
+![The Host panel](host.webp)
+
 - [Overview](#overview)
 - [CPU](#cpu)
 - [Memory](#memory)

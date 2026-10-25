@@ -195,8 +195,9 @@ alert "blog/blog-db": Blog container blog-db, warning
 alert "blog/example.com": Blog certificate example.com, warning
 ```
 
-The last lines list every alert with its ID, which is what `dependsOn` refers
-to (see [alerts](alerts.md)).
+The last lines list every alert with its ID. To refer to an alert in
+`dependsOn`, give it an `id` of your own rather than relying on the generated
+one (see [alerts](alerts.md)).
 
 There are two kinds of errors:
 
