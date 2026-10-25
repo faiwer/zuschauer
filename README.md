@@ -99,6 +99,9 @@ zuschauer --sensors          list temperature sensors with their current reading
 - [Host](docs/host.md): CPU, memory, storage and temperature.
 - [Apps](docs/apps.md): containers, health checks, certificates, services and
   jobs.
+- [Notifiers](docs/notifiers.md): sending alerts to ntfy.
+- [Heartbeat](docs/heartbeat.md): letting an outside service know zuschauer is
+  alive.
 - [Development](docs/development.md): building, testing, git hooks.
 
 ## The name
