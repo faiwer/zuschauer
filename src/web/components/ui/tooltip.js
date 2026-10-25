@@ -33,7 +33,8 @@ class Tooltip {
     this.#el = document.createElement('div');
     this.#el.className = 'tooltip';
     this.#el.setAttribute('role', 'tooltip');
-    this.#el.hidden = true;
+    // In the top layer, so it's over an open <dialog> too.
+    this.#el.popover = 'manual';
     document.body.append(this.#el);
 
     document.addEventListener('pointerover', (event) => this.#over(event));
@@ -51,8 +52,8 @@ class Tooltip {
   hide() {
     clearTimeout(this.#timer);
     this.#target = null;
-    if (!this.#el.hidden) {
-      this.#el.hidden = true;
+    if (this.#el.matches(':popover-open')) {
+      this.#el.hidePopover();
       this.#hiddenAt = performance.now();
     }
   }
@@ -95,7 +96,9 @@ class Tooltip {
     el.style.left = '0';
     el.style.top = '0';
     el.style.visibility = 'hidden';
-    el.hidden = false;
+    // Reopened, so it stacks over a dialog opened since.
+    if (el.matches(':popover-open')) el.hidePopover();
+    el.showPopover();
     this.#place(target.getBoundingClientRect(), el.getBoundingClientRect());
     el.style.visibility = '';
   }

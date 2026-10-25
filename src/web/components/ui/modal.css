@@ -8,14 +8,48 @@
   border-radius: 0.7rem;
   box-shadow: var(--panel-shadow);
   color: var(--text-secondary);
+  /* The body scrolls instead, so the close button stays in place. */
+  overflow: hidden;
+
+  &[open] {
+    display: flex;
+    flex-direction: column;
+  }
 
   &::backdrop {
     background: var(--backdrop);
   }
 }
 
+/* Groups: `section > h1 + ol`, one `li` per item. */
 .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-height: 0;
   padding: 1rem var(--padding-x);
+  overflow-y: auto;
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  h1 {
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  ol {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0;
+    padding-left: 1.2rem;
+    list-style: disc;
+    font-size: 0.9rem;
+  }
 }
 
 .modal-close {

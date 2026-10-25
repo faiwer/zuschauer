@@ -1,7 +1,9 @@
 /* Placed by `tooltip.js`. */
 .tooltip {
   position: fixed;
-  z-index: 10;
+  /* Undoes the popover's defaults: centered in the viewport. */
+  inset: auto;
+  margin: 0;
   max-width: 20rem;
   padding: 0.4rem 0.6rem;
   background: var(--tooltip-bg);

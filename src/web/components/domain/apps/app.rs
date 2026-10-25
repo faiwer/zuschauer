@@ -98,7 +98,7 @@ fn render_app_row(app: &AppView) -> Markup {
     let health_hint = hint_id();
     let certificates_hint = hint_id();
     html! {
-        tr.table-row {
+        tr.table-row.clickable data-entity=(format!("app:{}", app.name)) {
             td.app-narrow {
                 (tinted_icon(Icon::App, level.class(), Some(&health_hint)))
                 (render_hint(&health_hint, render_health_hint(&summary.health)))

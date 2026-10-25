@@ -21,7 +21,7 @@ mod logo;
 mod panel;
 
 pub use empty::{Tone, render_empty};
-pub use format::{ago, date_time, mib, span, status_label, until};
+pub use format::{ago, date, date_time, mib, span, status_for, status_label, until};
 pub use frame::render_frame;
 pub use gauge::render_gauge;
 pub use hint::{hint_id, render_hint};

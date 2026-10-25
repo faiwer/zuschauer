@@ -16,6 +16,8 @@ class EntityDialog {
   constructor() {
     this.#dialog = document.createElement('dialog');
     this.#dialog.className = 'modal';
+    // Focused itself on open, rather than the close button with a ring.
+    this.#dialog.autofocus = true;
 
     const close = document.createElement('button');
     close.className = 'modal-close';

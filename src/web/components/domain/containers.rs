@@ -4,8 +4,8 @@ use crate::model::{EntityId, MetricKind, Sample, Status};
 use crate::store::{Entity, store};
 
 use super::super::ui::{
-    Icon, Level, Tone, ago, hint_id, mib, render_empty, render_hint, render_panel, status_label,
-    tinted_icon,
+    Icon, Level, Tone, ago, date_time, hint_id, mib, render_empty, render_hint, render_panel,
+    status_label, tinted_icon,
 };
 
 pub struct ContainerRow {
@@ -79,7 +79,7 @@ fn render_container_panel_row(row: &ContainerRow) -> Markup {
     let level = row.level();
     let status_hint = hint_id();
     html! {
-        tr.table-row {
+        tr.table-row.clickable data-entity=(format!("container:{}", row.name)) {
             td.container-icon {
                 (tinted_icon(Icon::Container, level.class(), Some(&status_hint)))
                 (render_hint(&status_hint, html! { (status_title(row.status)) }))
@@ -115,6 +115,55 @@ fn status_title(status: Option<Status>) -> String {
         Some(Status::Running | Status::Up { .. }) => "Running".to_owned(),
         Some(Status::Paused) => "Paused".to_owned(),
         Some(Status::Gone { since } | Status::Down { since }) => format!("Gone for {}", ago(since)),
+    }
+}
+
+/// The dialog's content for the container called `name`, among those seen
+/// since start. `None`: no such container.
+pub fn render_container_dialog(name: &str) -> Option<Markup> {
+    let row = container_rows().into_iter().find(|row| row.name == name)?;
+    Some(html! {
+        section {
+            h1 { "Container" }
+            ol { (render_container_item(&row)) }
+        }
+    })
+}
+
+/// The status icon and name, then the usage while running, or the state.
+pub fn render_container_item(row: &ContainerRow) -> Markup {
+    let level = row.level();
+    html! {
+        li {
+            (tinted_icon(Icon::Container, level.class(), None))
+            " "
+            span.highlight.(level.text_class()) { (row.name) }
+            " — " (container_state(row))
+        }
+    }
+}
+
+fn container_state(row: &ContainerRow) -> String {
+    match row.status {
+        None => "not seen since start".to_owned(),
+        Some(Status::Paused) => "paused".to_owned(),
+        Some(Status::Gone { since } | Status::Down { since }) => {
+            format!("gone at {}", date_time(since))
+        }
+        Some(Status::Running | Status::Up { .. }) => {
+            let usage: Vec<String> = [
+                row.cpu.map(|s| format!("{:.1}% CPU", s.value)),
+                row.memory.map(|s| format!("{} RAM", mib(s.value))),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            if usage.is_empty() {
+                "running".to_owned()
+            } else {
+                usage.join(", ")
+            }
+        }
     }
 }
 
