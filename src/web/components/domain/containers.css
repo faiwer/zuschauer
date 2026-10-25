@@ -3,3 +3,8 @@
   width: 1%;
   white-space: nowrap;
 }
+
+/* Over `.modal-body section`'s gap: it's as specific, and comes later. */
+section.container-graph {
+  gap: 1rem;
+}

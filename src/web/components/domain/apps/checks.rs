@@ -4,7 +4,7 @@ use crate::config::{App, HealthCheck};
 use crate::model::{EntityId, MetricKind, Sample, Status};
 use crate::store::{Entity, Store};
 
-use super::super::super::ui::{Icon, Level, status_for, status_label, tinted_icon};
+use super::super::super::ui::{Icon, Level, status_for, tinted_icon};
 
 pub struct CheckRow {
     pub(super) name: &'static str,
@@ -55,20 +55,6 @@ pub fn render_check_item(row: &CheckRow) -> Markup {
                 (Some(Status::Down { .. }), _, Some(error)) => { ": " (error) }
                 _ => {}
             }
-        }
-    }
-}
-
-pub fn render_check_row(row: &CheckRow) -> Markup {
-    html! {
-        tr.table-row {
-            td.highlight { (row.name) }
-            td { (status_label(row.status)) }
-            @match (row.status, row.latency) {
-                (Some(Status::Up { .. }), Some(s)) => td { "responded in " (format!("{:.0}", s.value)) " ms" },
-                _ => td { "—" },
-            }
-            td { (row.error.as_deref().unwrap_or_default()) }
         }
     }
 }

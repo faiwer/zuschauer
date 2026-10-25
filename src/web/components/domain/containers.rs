@@ -1,11 +1,11 @@
 use maud::{Markup, html};
 
-use crate::model::{EntityId, MetricKind, Sample, Status};
+use crate::model::{EntityId, MetricKind, Sample, Status, Timestamp};
 use crate::store::{Entity, store};
 
 use super::super::ui::{
-    Icon, Level, Tone, ago, date_time, hint_id, mib, render_empty, render_hint, render_panel,
-    status_label, tinted_icon,
+    Icon, Level, Tone, ago, date_time, hint_id, mib, render_empty, render_graph, render_hint,
+    render_panel, tinted_icon,
 };
 
 pub struct ContainerRow {
@@ -122,12 +122,42 @@ fn status_title(status: Option<Status>) -> String {
 /// since start. `None`: no such container.
 pub fn render_container_dialog(name: &str) -> Option<Markup> {
     let row = container_rows().into_iter().find(|row| row.name == name)?;
+    let (cpu, memory) = {
+        let store = store();
+        let entity = store.entity(&EntityId::Container(name.to_owned()));
+        (
+            series_points(entity, MetricKind::Cpu, 1.0),
+            series_points(entity, MetricKind::MemoryBytes, 1.0 / MIB),
+        )
+    };
     Some(html! {
         section {
             h1 { "Container" }
             ol { (render_container_item(&row)) }
         }
+        @if !cpu.is_empty() {
+            section.container-graph {
+                h1 { "CPU" }
+                (render_graph(&cpu, "%"))
+            }
+        }
+        @if !memory.is_empty() {
+            section.container-graph {
+                h1 { "Memory" }
+                (render_graph(&memory, " MiB"))
+            }
+        }
     })
+}
+
+const MIB: f32 = 1024.0 * 1024.0;
+
+/// The entity's series, oldest first, with values times `scale`.
+fn series_points(entity: Option<&Entity>, metric: MetricKind, scale: f32) -> Vec<(Timestamp, f32)> {
+    entity
+        .and_then(|e| e.series(metric))
+        .map(|series| series.iter().map(|s| (s.at, s.value * scale)).collect())
+        .unwrap_or_default()
 }
 
 /// The status icon and name, then the usage while running, or the state.
@@ -162,26 +192,6 @@ fn container_state(row: &ContainerRow) -> String {
                 "running".to_owned()
             } else {
                 usage.join(", ")
-            }
-        }
-    }
-}
-
-pub fn render_container_row(row: &ContainerRow) -> Markup {
-    html! {
-        tr.table-row {
-            td.highlight { (row.name) }
-            @match row.status {
-                None => td colspan="3" { "not seen" },
-                Some(Status::Gone { .. }) => {
-                    td { (status_label(row.status)) }
-                    td colspan="2" { "—" }
-                }
-                Some(_) => {
-                    td { (status_label(row.status)) }
-                    td { (row.cpu.map_or("—".to_owned(), |s| format!("CPU {:.1}%", s.value))) }
-                    td { (row.memory.map_or("—".to_owned(), |s| format!("mem {}", mib(s.value)))) }
-                }
             }
         }
     }

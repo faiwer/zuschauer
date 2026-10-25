@@ -10,7 +10,6 @@ pub enum Icon {
     Cert,
     Checkmark,
     Container,
-    Eye,
     Host,
     Reload,
     Service,
@@ -19,13 +18,12 @@ pub enum Icon {
 }
 
 impl Icon {
-    const ALL: [Self; 11] = [
+    const ALL: [Self; 10] = [
         Self::Alert,
         Self::App,
         Self::Cert,
         Self::Checkmark,
         Self::Container,
-        Self::Eye,
         Self::Host,
         Self::Reload,
         Self::Service,
@@ -40,7 +38,6 @@ impl Icon {
             Self::Cert => "cert",
             Self::Checkmark => "checkmark",
             Self::Container => "container",
-            Self::Eye => "eye",
             Self::Host => "host",
             Self::Reload => "reload",
             Self::Service => "service",
@@ -56,7 +53,6 @@ impl Icon {
             Self::Cert => include_str!("../../icons/cert.svg"),
             Self::Checkmark => include_str!("../../icons/checkmark.svg"),
             Self::Container => include_str!("../../icons/container.svg"),
-            Self::Eye => include_str!("../../icons/eye.svg"),
             Self::Host => include_str!("../../icons/host.svg"),
             Self::Reload => include_str!("../../icons/reload.svg"),
             Self::Service => include_str!("../../icons/service.svg"),

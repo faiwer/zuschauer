@@ -25,6 +25,10 @@
   --tooltip-border: #647b91;
   --row-hover-bg: #1a2736;
   --backdrop: rgb(0 0 0 / 60%);
+  --graph-axis: #ffffff;
+  --graph-line: #e9ef7f;
+  --graph-grid: #4a5d70;
+  --graph-label: var(--text-secondary);
   --padding-x: 1rem;
   --panel-shadow: 0.125rem 0.25rem 0.0625rem black;
 }

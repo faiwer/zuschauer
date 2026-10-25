@@ -4,7 +4,7 @@ use crate::config::{App, AppCertificate, CertificatesConfig};
 use crate::model::{EntityId, Status, Timestamp, now};
 use crate::store::{Entity, Store};
 
-use super::super::super::ui::{Icon, Level, ago, date, tinted_icon, until};
+use super::super::super::ui::{Icon, Level, date, tinted_icon};
 
 pub struct CertificateRow {
     pub(super) host: String,
@@ -66,33 +66,6 @@ pub fn render_certificate_item(row: &CertificateRow) -> Markup {
                 (Some(Status::Up { .. }), Some(at), _) => { "expires at " (date(at)) }
                 _ => "no result yet",
             }
-        }
-    }
-}
-
-pub fn render_certificate_row(row: &CertificateRow) -> Markup {
-    html! {
-        tr.table-row {
-            td.highlight { (row.host) }
-            @match (row.status, row.expires_at) {
-                (Some(Status::Up { .. }), Some(at)) if row.expiring => {
-                    td { strong { "expiring" } }
-                    td { "in " (until(at)) }
-                }
-                (Some(Status::Up { .. }), Some(at)) => {
-                    td { "valid" }
-                    td { "expires in " (until(at)) }
-                }
-                (Some(Status::Down { since }), _) => {
-                    td { "failing " (ago(since)) }
-                    td { "—" }
-                }
-                _ => {
-                    td { "pending" }
-                    td { "—" }
-                }
-            }
-            td { (row.error.as_deref().unwrap_or_default()) }
         }
     }
 }

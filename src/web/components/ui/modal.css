@@ -50,6 +50,11 @@
     list-style: disc;
     font-size: 0.9rem;
   }
+
+  /* On top of the space between the item's icon and its name. */
+  li > .icon:first-child {
+    margin-right: 0.15rem;
+  }
 }
 
 .modal-close {

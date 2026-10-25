@@ -5,11 +5,11 @@ use crate::model::EntityId;
 use crate::store::store;
 
 use super::super::super::ui::{Icon, Level, hint_id, mib, render_hint, render_panel, tinted_icon};
-use super::super::containers::{ContainerRow, container_row, render_container_row};
-use super::certificates::{CertificateRow, certificate_row, render_certificate_row};
-use super::checks::{CheckRow, check_row, render_check_row};
-use super::jobs::{JobRow, job_row, render_job_row};
-use super::services::{ServiceRow, render_service_row, service_row};
+use super::super::containers::{ContainerRow, container_row};
+use super::certificates::{CertificateRow, certificate_row};
+use super::checks::{CheckRow, check_row};
+use super::jobs::{JobRow, job_row};
+use super::services::{ServiceRow, service_row};
 use super::summary::{Verdicts, counted_containers, summarize};
 
 pub struct AppView {
@@ -157,22 +157,6 @@ fn render_health_hint(health: &Verdicts) -> Markup {
             Level::Ok => "All fine",
             Level::Warning | Level::Problem => {
                 ul { @for note in &health.notes { li { (note) } } }
-            }
-        }
-    }
-}
-
-#[expect(dead_code, reason = "the details popup will show it")]
-fn render_app_details(app: &AppView) -> Markup {
-    html! {
-        div.app {
-            h3.app-title { (app.name) }
-            table {
-                @for row in &app.checks { (render_check_row(row)) }
-                @for row in &app.containers { (render_container_row(row)) }
-                @for row in &app.certificates { (render_certificate_row(row)) }
-                @for row in &app.services { (render_service_row(row)) }
-                @for row in &app.jobs { (render_job_row(row)) }
             }
         }
     }

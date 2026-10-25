@@ -1,0 +1,68 @@
+/* Labels on the left and below; the plot's left and bottom borders are the
+   axes. */
+.graph {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.5rem;
+  /* Half of the widest time label, centered on the plot's right edge. */
+  padding-right: 1.75rem;
+  font-size: 0.75rem;
+  color: var(--graph-label);
+}
+
+/* Ticks are evenly spaced, so are the labels: half a line past each end
+   centers them on the lines. */
+.graph-y {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  margin-block: -0.5rem;
+  line-height: 1rem;
+  text-align: right;
+}
+
+/* 150px */
+.graph-plot {
+  position: relative;
+  height: 8rem;
+  border-left: 1px solid var(--graph-axis);
+  border-bottom: 1px solid var(--graph-axis);
+
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  path {
+    fill: none;
+    stroke: var(--graph-line);
+    stroke-width: 1.5px;
+    stroke-linejoin: round;
+    /* The SVG is stretched; the line isn't. */
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+.graph-grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dotted var(--graph-grid);
+}
+
+/* Each label centered under its time. */
+.graph-x {
+  grid-column: 2;
+  position: relative;
+  height: 1rem;
+  line-height: 1rem;
+
+  span {
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+}

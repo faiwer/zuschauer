@@ -9,11 +9,13 @@
 //! - `level`: how good something looks, and its tint
 //! - `logo`: the colored logo, served as the favicon and shown from there
 //! - `format`: durations, sizes and statuses as text
+//! - `graph`: a series as a line graph
 
 mod empty;
 mod format;
 mod frame;
 mod gauge;
+mod graph;
 mod hint;
 mod icon;
 mod level;
@@ -21,9 +23,10 @@ mod logo;
 mod panel;
 
 pub use empty::{Tone, render_empty};
-pub use format::{ago, date, date_time, mib, span, status_for, status_label, until};
+pub use format::{ago, date, date_time, mib, span, status_for, until};
 pub use frame::render_frame;
 pub use gauge::render_gauge;
+pub use graph::render_graph;
 pub use hint::{hint_id, render_hint};
 pub use icon::{Icon, icon, tinted_icon};
 pub use level::Level;

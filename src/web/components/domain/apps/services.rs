@@ -4,7 +4,7 @@ use crate::config::{App, AppService, Dur, RestartLimit};
 use crate::model::{EntityId, MetricKind, Sample, Status};
 use crate::store::{Entity, Store};
 
-use super::super::super::ui::{Icon, Level, status_for, status_label, tinted_icon};
+use super::super::super::ui::{Icon, Level, status_for, tinted_icon};
 
 pub struct ServiceRow {
     pub(super) name: &'static str,
@@ -58,22 +58,6 @@ pub fn render_service_item(row: &ServiceRow) -> Markup {
                 ", " (format!("{:.0}", sample.value)) " of " (limit.above)
                 " restarts in " (Dur::from(limit.within))
             }
-        }
-    }
-}
-
-pub fn render_service_row(row: &ServiceRow) -> Markup {
-    html! {
-        tr.table-row {
-            td.highlight { (row.name) }
-            td { (status_label(row.status)) }
-            @match row.restarts {
-                Some((sample, limit)) => td {
-                    (format!("{:.0}", sample.value)) " restarts in " (Dur::from(limit.within).to_string())
-                },
-                None => td { "—" },
-            }
-            td { (row.error.as_deref().unwrap_or_default()) }
         }
     }
 }

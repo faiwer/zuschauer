@@ -1,18 +1,7 @@
 use crate::cron::Civil;
 use crate::model::{Status, Timestamp, now};
 
-pub fn status_label(status: Option<Status>) -> String {
-    match status {
-        None => "pending".to_owned(),
-        Some(Status::Running) => "running".to_owned(),
-        Some(Status::Paused) => "paused".to_owned(),
-        Some(Status::Gone { since }) => format!("gone {}", ago(since)),
-        Some(Status::Up { since }) => format!("up {}", ago(since)),
-        Some(Status::Down { since }) => format!("down {}", ago(since)),
-    }
-}
-
-/// Like `status_label`, with how long for: `up for 3d`.
+/// The state, with how long for: `up for 3d`.
 pub fn status_for(status: Option<Status>) -> String {
     match status {
         None => "no result yet".to_owned(),
@@ -53,6 +42,12 @@ pub fn date_time(at: Timestamp) -> String {
         c.hour,
         c.minute
     )
+}
+
+/// Local time of day, like `15:24`.
+pub fn clock(at: Timestamp) -> String {
+    let c = Civil::local(at);
+    format!("{:02}:{:02}", c.hour, c.minute)
 }
 
 /// Like `date_time`, without the time unless it's today: `Apr 28, 2025`.
