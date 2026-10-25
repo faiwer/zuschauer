@@ -32,7 +32,7 @@ pub fn render_empty(tone: Tone, title: &str, subtitle: &str) -> Markup {
     let (icon, tint) = tone.icon();
     html! {
         div.empty.(tone.class()) {
-            (tinted_icon(icon, tint))
+            (tinted_icon(icon, tint, None))
             div.empty-lines {
                 span.empty-title { (title) }
                 span.empty-subtitle { (subtitle) }

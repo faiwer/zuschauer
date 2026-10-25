@@ -21,6 +21,8 @@
   --toast-neutral-border: #0b141d;
   --toast-warning-bg: #2a1d0e;
   --toast-warning-border: #5a3d1c;
+  --tooltip-bg: #2d3e53;
+  --tooltip-border: #647b91;
   --padding-x: 1rem;
   --panel-shadow: 0.125rem 0.25rem 0.0625rem black;
 }

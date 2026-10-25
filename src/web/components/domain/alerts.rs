@@ -3,7 +3,9 @@ use maud::{Markup, html};
 use crate::alerts::Firing;
 use crate::config::{Dur, Severity};
 
-use super::super::ui::{Icon, Tone, ago, date_time, render_empty, render_panel, tinted_icon};
+use super::super::ui::{
+    Icon, Tone, ago, date_time, hint_id, render_empty, render_hint, render_panel, tinted_icon,
+};
 
 /// `configured`: whether the config has any alert at all.
 pub fn render_alerts(firing: &[Firing], configured: bool) -> Markup {
@@ -28,16 +30,22 @@ pub fn render_alerts(firing: &[Firing], configured: bool) -> Markup {
 }
 
 fn render_alert_row(alert: &Firing) -> Markup {
+    let severity_hint = hint_id();
+    let age_hint = hint_id();
     html! {
         tr.table-row {
-            td.alert-icon title=(alert.alert.severity) {
-                (tinted_icon(Icon::Alert, severity_tint(alert.alert.severity)))
+            td.alert-icon {
+                (tinted_icon(Icon::Alert, severity_tint(alert.alert.severity), Some(&severity_hint)))
+                (render_hint(&severity_hint, html! { (alert.alert.severity) }))
             }
             td {
                 div.highlight { (alert.alert.label) }
                 div { (alert.detail) }
             }
-            td title=(age_details(alert)) { "~" (ago(alert.since)) }
+            td.alert-age data-hint=(age_hint) {
+                "~" (ago(alert.since))
+                (render_hint(&age_hint, render_age_hint(alert)))
+            }
         }
     }
 }
@@ -50,10 +58,11 @@ fn severity_tint(severity: Severity) -> &'static str {
     }
 }
 
-fn age_details(alert: &Firing) -> String {
-    format!(
-        "Problem since {}, fires after {}",
-        date_time(alert.since),
-        Dur::from(alert.alert.after)
-    )
+fn render_age_hint(alert: &Firing) -> Markup {
+    html! {
+        ul {
+            li { "Problem since " (date_time(alert.since)) }
+            li { "Fires after " (Dur::from(alert.alert.after)) }
+        }
+    }
 }

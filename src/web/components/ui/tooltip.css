@@ -1,0 +1,28 @@
+/* Placed by `tooltip.js`. */
+.tooltip {
+  position: fixed;
+  z-index: 10;
+  max-width: 20rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--tooltip-bg);
+  border: 1px solid var(--tooltip-border);
+  border-radius: 0.5rem;
+  box-shadow: var(--panel-shadow);
+  color: var(--text);
+  font-size: 0.8rem;
+  pointer-events: none;
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin: 0;
+    padding-left: 1rem;
+
+    /* A single line needs no bullet. */
+    &:has(> li:only-child) {
+      padding-left: 0;
+      list-style: none;
+    }
+  }
+}

@@ -75,10 +75,10 @@ pub fn icon(icon: Icon) -> Markup {
     }
 }
 
-/// Like `icon`, colored by a `.tint-*` class.
-pub fn tinted_icon(icon: Icon, tint: &str) -> Markup {
+/// Like `icon`, colored by a `.tint-*` class. `hint`: a `render_hint` ID.
+pub fn tinted_icon(icon: Icon, tint: &str, hint: Option<&str>) -> Markup {
     html! {
-        svg.icon.tinted.(tint) aria-hidden="true" {
+        svg.icon.tinted.(tint) aria-hidden="true" data-hint=[hint] {
             use href=(href(icon)) {}
         }
     }

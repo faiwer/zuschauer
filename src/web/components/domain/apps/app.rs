@@ -4,13 +4,13 @@ use crate::config::{App, CertificatesConfig, Config};
 use crate::model::EntityId;
 use crate::store::store;
 
-use super::super::super::ui::{Icon, Level, icon, mib, render_panel, tinted_icon};
+use super::super::super::ui::{Icon, Level, hint_id, mib, render_hint, render_panel, tinted_icon};
 use super::super::containers::{ContainerRow, container_row, render_container_row};
 use super::certificates::{CertificateRow, certificate_row, render_certificate_row};
 use super::checks::{CheckRow, check_row, render_check_row};
 use super::jobs::{JobRow, job_row, render_job_row};
 use super::services::{ServiceRow, render_service_row, service_row};
-use super::summary::{Verdicts, summarize};
+use super::summary::{Verdicts, counted_containers, summarize};
 
 pub struct AppView {
     pub(super) name: &'static str,
@@ -70,7 +70,6 @@ pub fn render_apps(apps: &[AppView]) -> Markup {
                         th.app-narrow { "Memory" }
                         th.app-narrow { "CPU" }
                         th.app-narrow {}
-                        th.app-narrow {}
                     }
                 }
                 tbody {
@@ -96,39 +95,70 @@ pub fn app_containers(app: &AppView) -> &[ContainerRow] {
 fn render_app_row(app: &AppView) -> Markup {
     let summary = summarize(app);
     let level = summary.health.level;
+    let health_hint = hint_id();
+    let certificates_hint = hint_id();
     html! {
         tr.table-row {
-            td.app-narrow title=(health_title(&summary.health)) {
-                (tinted_icon(Icon::App, level.class()))
-            }
-            td.highlight.(level.text_class()) { (app.name) }
             td.app-narrow {
-                (summary.memory_bytes.map_or("—".to_owned(), mib))
+                (tinted_icon(Icon::App, level.class(), Some(&health_hint)))
+                (render_hint(&health_hint, render_health_hint(&summary.health)))
+            }
+            td.highlight.(level.text_class()) {
+                span data-hint=[level.is_bad().then_some(&health_hint)] { (app.name) }
             }
             td.app-narrow {
-                (summary.cpu.map_or("—".to_owned(), |cpu| format!("{cpu:.1}%")))
+                (render_usage(app, summary.memory_bytes, |c| c.memory.map(|s| s.value), mib))
+            }
+            td.app-narrow {
+                (render_usage(app, summary.cpu, |c| c.cpu.map(|s| s.value), percent))
             }
             td.app-narrow {
                 @if let Some(certificates) = &summary.certificates {
-                    span title=(certificates.notes.join("\n")) {
-                        (tinted_icon(Icon::Cert, certificates.level.class()))
-                    }
-                }
-            }
-            td.app-narrow {
-                button.icon-button type="button" title="Details" aria-label="Details" {
-                    (icon(Icon::Eye))
+                    (tinted_icon(Icon::Cert, certificates.level.class(), Some(&certificates_hint)))
+                    (render_hint(&certificates_hint, html! {
+                        ul { @for note in &certificates.notes { li { (note) } } }
+                    }))
                 }
             }
         }
     }
 }
 
-fn health_title(health: &Verdicts) -> String {
-    match health.level {
-        Level::Unknown => "No data yet".to_owned(),
-        Level::Ok => "All fine".to_owned(),
-        Level::Warning | Level::Problem => health.notes.join(", "),
+/// The app's total, with a per-container hint when several add up to it.
+fn render_usage(
+    app: &AppView,
+    total: Option<f32>,
+    value: impl Fn(&ContainerRow) -> Option<f32>,
+    format: impl Fn(f32) -> String,
+) -> Markup {
+    let parts: Vec<(&str, f32)> = counted_containers(app)
+        .filter_map(|c| Some((c.name.as_str(), value(c)?)))
+        .collect();
+    let hint = (parts.len() > 1).then(hint_id);
+    html! {
+        span data-hint=[&hint] { (total.map_or("—".to_owned(), &format)) }
+        @if let Some(hint) = &hint {
+            (render_hint(hint, html! {
+                ul { @for (name, value) in &parts { li { (name) ": " (format(*value)) } } }
+            }))
+        }
+    }
+}
+
+fn percent(value: f32) -> String {
+    format!("{value:.1}%")
+}
+
+/// One line per note.
+fn render_health_hint(health: &Verdicts) -> Markup {
+    html! {
+        @match health.level {
+            Level::Unknown => "No data yet",
+            Level::Ok => "All fine",
+            Level::Warning | Level::Problem => {
+                ul { @for note in &health.notes { li { (note) } } }
+            }
+        }
     }
 }
 

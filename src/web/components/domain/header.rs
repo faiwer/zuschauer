@@ -4,7 +4,9 @@ use crate::config::Config;
 use crate::heartbeat;
 use crate::model::{Timestamp, now};
 
-use super::super::ui::{Icon, Level, date_time, icon, render_logo, tinted_icon};
+use super::super::ui::{
+    Icon, Level, date_time, hint_id, icon, render_hint, render_logo, tinted_icon,
+};
 use super::apps::{app_containers, app_level, app_views};
 use super::containers::ContainerRow;
 use super::heartbeat::{HeartbeatDot, heartbeat_dot, render_heartbeat_dot};
@@ -88,11 +90,13 @@ pub fn render_header(view: &HeaderView) -> Markup {
 /// The reload button beside when the page was rendered. A plain GET form, so
 /// reloading needs no script.
 fn render_updated(at: Timestamp) -> Markup {
+    let reload_hint = hint_id();
     html! {
         div.updated {
             form method="get" {
-                button.icon-button type="submit" title="Reload" aria-label="Reload" {
+                button.icon-button type="submit" aria-label="Reload" data-hint=(reload_hint) {
                     (icon(Icon::Reload))
+                    (render_hint(&reload_hint, html! { "Reload page" }))
                 }
             }
             div.updated-lines {
@@ -108,7 +112,7 @@ fn render_health(health: &Health) -> Markup {
     let bad = health.worst.is_bad();
     let tint = health.worst.class();
     let stat_icon = if bad {
-        tinted_icon(health.icon, tint)
+        tinted_icon(health.icon, tint, None)
     } else {
         icon(health.icon)
     };

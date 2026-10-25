@@ -92,13 +92,17 @@ fn health(app: &AppView) -> Verdicts {
     health
 }
 
-/// Over the containers still running or paused.
 fn sum(app: &AppView, value: impl Fn(&ContainerRow) -> Option<f32>) -> Option<f32> {
+    counted_containers(app)
+        .filter_map(value)
+        .reduce(|a, b| a + b)
+}
+
+/// The containers whose usage counts: still running or paused.
+pub fn counted_containers(app: &AppView) -> impl Iterator<Item = &ContainerRow> {
     app.containers
         .iter()
         .filter(|c| matches!(c.status, Some(Status::Running | Status::Paused)))
-        .filter_map(value)
-        .reduce(|a, b| a + b)
 }
 
 fn certificates(app: &AppView) -> Option<Verdicts> {

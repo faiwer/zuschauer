@@ -4,7 +4,9 @@ use crate::config::{Alert, Config};
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::{Entity, Store, store};
 
-use super::super::ui::{Icon, Level, icon, render_gauge, render_panel, tinted_icon};
+use super::super::ui::{
+    Icon, Level, hint_id, icon, render_gauge, render_hint, render_panel, tinted_icon,
+};
 
 pub struct HostView {
     cpu: HostRow,
@@ -123,16 +125,21 @@ fn render_host_gauge(row: &HostRow) -> Markup {
 }
 
 fn render_reading_row(reading_icon: Icon, row: &HostRow) -> Markup {
+    let hint = row.error.as_ref().map(|error| (hint_id(), error));
+    let hint_ref = hint.as_ref().map(|(id, _)| id);
     html! {
-        tr.table-row.host-reading-error[row.error.is_some()] title=[&row.error] {
+        tr.table-row.host-reading-error[row.error.is_some()] {
             td.host-reading-icon {
                 @if row.error.is_some() {
-                    (tinted_icon(reading_icon, "tint-problem"))
+                    (tinted_icon(reading_icon, "tint-problem", hint_ref.map(String::as_str)))
                 } @else {
                     (icon(reading_icon))
                 }
+                @if let Some((id, error)) = &hint {
+                    (render_hint(id, html! { (error) }))
+                }
             }
-            td.highlight.host-reading-label { (row.label) }
+            td.highlight.host-reading-label data-hint=[hint_ref] { (row.label) }
             td.host-reading-value.(row.level().text_class()) { (row.value()) }
         }
     }

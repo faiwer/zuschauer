@@ -3,6 +3,9 @@ use maud::{DOCTYPE, Markup, PreEscaped, html};
 use super::super::styles::STYLES;
 use super::icon::render_icon_sprite;
 
+/// Last in `body`, so it finds `document.body`.
+const TOOLTIP_JS: &str = include_str!("tooltip.js");
+
 /// The whole HTML document around a page's `content`, with all the CSS
 /// inlined.
 pub fn render_frame(title: &str, content: Markup) -> Markup {
@@ -26,6 +29,7 @@ pub fn render_frame(title: &str, content: Markup) -> Markup {
             body {
                 (render_icon_sprite())
                 (content)
+                script { (PreEscaped(TOOLTIP_JS)) }
             }
         }
     }

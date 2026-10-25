@@ -4,7 +4,8 @@ use crate::model::{EntityId, MetricKind, Sample, Status};
 use crate::store::{Entity, store};
 
 use super::super::ui::{
-    Icon, Level, Tone, ago, mib, render_empty, render_panel, status_label, tinted_icon,
+    Icon, Level, Tone, ago, hint_id, mib, render_empty, render_hint, render_panel, status_label,
+    tinted_icon,
 };
 
 pub struct ContainerRow {
@@ -76,12 +77,16 @@ pub fn render_containers(rows: &[ContainerRow], configured: bool) -> Markup {
 fn render_container_panel_row(row: &ContainerRow) -> Markup {
     let usage = !matches!(row.status, None | Some(Status::Gone { .. }));
     let level = row.level();
+    let status_hint = hint_id();
     html! {
         tr.table-row {
-            td.container-icon title=(status_title(row.status)) {
-                (tinted_icon(Icon::Container, level.class()))
+            td.container-icon {
+                (tinted_icon(Icon::Container, level.class(), Some(&status_hint)))
+                (render_hint(&status_hint, html! { (status_title(row.status)) }))
             }
-            td.highlight.(level.text_class()) { (row.name) }
+            td.highlight.(level.text_class()) {
+                span data-hint=[level.is_bad().then_some(&status_hint)]{ (row.name) }
+            }
             @if usage {
                 td.container-usage { (row.cpu.map_or("—".to_owned(), |s| format!("{:.1}%", s.value))) }
                 td.container-usage { (row.memory.map_or("—".to_owned(), |s| mib(s.value))) }
