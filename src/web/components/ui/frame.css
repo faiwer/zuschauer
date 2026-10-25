@@ -33,6 +33,34 @@
   --panel-shadow: 0.125rem 0.25rem 0.0625rem black;
 }
 
+/* Set by the script in `head`: the footer's choice, or the OS's. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f5f8;
+  --text: #1b232c;
+  --text-secondary: #5a6572;
+  --panel-bg: #ffffff;
+  --panel-border: #d3dae2;
+  --level-low: #319e50;
+  --level-normal: #4f9cf7;
+  --level-high: #bc4c00;
+  --level-critical: #cf222e;
+  --toast-positive-bg: #e8f5ec;
+  --toast-positive-border: #a9d8b6;
+  --toast-neutral-bg: #eef2f6;
+  --toast-neutral-border: #d3dae2;
+  --toast-warning-bg: #fff4e5;
+  --toast-warning-border: #f0c99a;
+  --tooltip-bg: #ffffff;
+  --tooltip-border: #b8c3cf;
+  --row-hover-bg: #eef3f8;
+  --backdrop: rgb(0 0 0 / 30%);
+  --graph-axis: #1b232c;
+  --graph-line: #9a7d00;
+  --graph-grid: #c3ccd6;
+  --panel-shadow: 0.125rem 0.25rem 0.375rem rgb(0 0 0 / 12%);
+}
+
 /* No root font-size: rem follows the browser's setting (16px by default), the
    same base media queries use. */
 html {

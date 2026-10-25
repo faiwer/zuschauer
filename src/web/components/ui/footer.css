@@ -1,0 +1,36 @@
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.footer-separator {
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  opacity: 0.2;
+}
+
+.footer-link {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.theme-to-dark,
+[data-theme="light"] .theme-to-light {
+  display: none;
+}
+
+[data-theme="light"] .theme-to-dark {
+  display: inline;
+}

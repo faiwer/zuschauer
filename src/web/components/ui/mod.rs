@@ -1,6 +1,7 @@
 //! Generic building blocks, free of monitoring concepts.
 //!
 //! - `frame`: the HTML document around a page
+//! - `footer`: the theme switch and the source link
 //! - `panel`: the titled box around each section
 //! - `empty`: the toast in place of an empty list
 //! - `gauge`: a ring filled to a percentage
@@ -12,6 +13,7 @@
 //! - `graph`: a series as a line graph
 
 mod empty;
+mod footer;
 mod format;
 mod frame;
 mod gauge;
