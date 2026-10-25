@@ -7,7 +7,6 @@ use super::super::ui::{
     Icon, Level, Tone, ago, date_time, hint_id, mib, render_empty, render_graph, render_hint,
     render_panel, tinted_icon,
 };
-
 pub struct ContainerRow {
     pub(super) name: String,
     /// `None` when it hasn't been seen since start.

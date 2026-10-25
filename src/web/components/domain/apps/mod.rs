@@ -6,7 +6,6 @@
 //!   container rows come from `containers`
 //! - `summary`: an app's health, usage and certificates, for its table row
 //! - `details`: an app's groups of rows, for the entity dialog
-
 mod app;
 mod certificates;
 mod checks;

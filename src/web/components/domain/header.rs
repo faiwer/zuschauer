@@ -9,13 +9,13 @@ use super::super::ui::{
 };
 use super::apps::{app_containers, app_level, app_views};
 use super::containers::ContainerRow;
-use super::heartbeat::{HeartbeatDot, heartbeat_dot, render_heartbeat_dot};
+use super::heartbeat::{HeartbeatView, heartbeat_view, render_heartbeat};
 
 pub struct HeaderView {
     updated: Timestamp,
     health: Vec<Health>,
     /// `None` without a configured heartbeat.
-    heartbeat: Option<HeartbeatDot>,
+    heartbeat: Option<HeartbeatView>,
 }
 
 /// How many of one kind of thing are fine, and the worst of them.
@@ -46,7 +46,7 @@ pub fn header_view(config: &'static Config) -> HeaderView {
         heartbeat: config
             .heartbeat
             .as_ref()
-            .map(|heartbeat| heartbeat_dot(heartbeat, &heartbeat::status())),
+            .map(|heartbeat| heartbeat_view(heartbeat, &heartbeat::status())),
     }
 }
 
@@ -74,7 +74,7 @@ pub fn render_header(view: &HeaderView) -> Markup {
                 div.site-title {
                     h1 {
                         "Zuschauer"
-                        @if let Some(dot) = &view.heartbeat { (render_heartbeat_dot(dot)) }
+                        @if let Some(heartbeat) = &view.heartbeat { (render_heartbeat(heartbeat)) }
                     }
                     p { "Infrastructure monitoring" }
                 }

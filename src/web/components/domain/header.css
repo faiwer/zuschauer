@@ -27,11 +27,10 @@
   font-size: 1.4rem;
 }
 
-.heartbeat-dot {
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 50%;
-  background: var(--tint, var(--text-secondary));
+/* Flex drops the line box, so the span is exactly the icon's square. */
+.heartbeat {
+  display: flex;
+  font-size: 1.25rem;
 }
 
 .site-title p {

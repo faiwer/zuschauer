@@ -3,16 +3,16 @@ use maud::{Markup, html};
 use crate::config::Heartbeat;
 use crate::heartbeat::Status;
 
-use super::super::ui::{ago, hint_id, render_hint};
+use super::super::ui::{Icon, ago, hint_id, icon, render_hint};
 
 /// The header's heartbeat indicator.
-pub struct HeartbeatDot {
+pub struct HeartbeatView {
     /// A `.tint-*` class.
     class: &'static str,
     hint: Markup,
 }
 
-pub fn heartbeat_dot(heartbeat: &Heartbeat, status: &Status) -> HeartbeatDot {
+pub fn heartbeat_view(heartbeat: &Heartbeat, status: &Status) -> HeartbeatView {
     let (class, state, error) = match (&status.failing, status.sent) {
         (Some((since, error)), sent) => {
             let sent = sent
@@ -27,7 +27,7 @@ pub fn heartbeat_dot(heartbeat: &Heartbeat, status: &Status) -> HeartbeatDot {
         (None, Some(at)) => ("tint-ok", format!("Sent {} ago", ago(at)), None),
         (None, None) => ("tint-unknown", "Pending".to_owned(), None),
     };
-    HeartbeatDot {
+    HeartbeatView {
         class,
         hint: html! {
             ul {
@@ -39,11 +39,12 @@ pub fn heartbeat_dot(heartbeat: &Heartbeat, status: &Status) -> HeartbeatDot {
     }
 }
 
-pub fn render_heartbeat_dot(dot: &HeartbeatDot) -> Markup {
+pub fn render_heartbeat(view: &HeartbeatView) -> Markup {
     let hint = hint_id();
     html! {
-        span.heartbeat-dot.(dot.class) data-hint=(hint) role="img" aria-label="Heartbeat" {
-            (render_hint(&hint, dot.hint.clone()))
+        span.heartbeat.tinted.(view.class) data-hint=(hint) role="img" aria-label="Heartbeat" {
+            (icon(Icon::Heartbeat))
+            (render_hint(&hint, view.hint.clone()))
         }
     }
 }

@@ -4,7 +4,6 @@
 //! - `header`: the site header, with the last update and the apps' health
 //! - `heartbeat`: the header's heartbeat indicator
 //! - `alerts`, `host`, `containers`, `apps`: the index sections
-
 mod alerts;
 mod apps;
 mod containers;
