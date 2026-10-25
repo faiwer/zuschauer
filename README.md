@@ -104,6 +104,7 @@ zuschauer --sensors          list temperature sensors with their current reading
 - [Notifiers](docs/notifiers.md): sending alerts to ntfy.
 - [Heartbeat](docs/heartbeat.md): letting an outside service know zuschauer is
   alive.
+- [Dashboard](docs/dashboard.md): the dashboard, the details dialogs, themes.
 - [Development](docs/development.md): building, testing, git hooks.
 
 ## The name
