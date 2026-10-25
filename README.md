@@ -17,6 +17,7 @@ when something goes wrong.
   zero CPU and under 5 MiB of RAM.
 - **Linux and macOS.** Built for a home server or a single VPS; runs on a
   laptop too.
+- **No root needed.** Runs as its own unprivileged user.
 
 ## What it watches
 
@@ -96,6 +97,14 @@ zuschauer --sensors          list temperature sensors with their current reading
 - [Configuration](docs/configuration.md): the file format, durations,
   percentages and temperatures, top-level settings.
 - [Development](docs/development.md): building, testing, git hooks.
+
+## The name
+
+*Zuschauer* is German for "spectator" or "onlooker": someone who watches. It
+comes from *zuschauen*, "to watch", from *zu* ("at") and *schauen* ("to look").
+
+It's pronounced **TSOO-show-er** ([ˈtsuːʃaʊ̯ɐ]): the German *z* sounds like the
+*ts* in "cats", and the final *-er* is a soft, unstressed "uh".
 
 ## License
 

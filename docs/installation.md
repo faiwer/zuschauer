@@ -7,6 +7,12 @@ to it and run it as a service.
 - [Requirements](#requirements)
 - [Building](#building)
 - [Cross-compiling for a Linux server](#cross-compiling-for-a-linux-server)
+- [Checking the config](#checking-the-config)
+- [Running as a systemd service (Linux)](#running-as-a-systemd-service-linux)
+- [Running as a launchd agent (macOS)](#running-as-a-launchd-agent-macos)
+- [Permissions](#permissions)
+- [Exposing the dashboard](#exposing-the-dashboard)
+- [Updating](#updating)
 
 ## Requirements
 
@@ -89,3 +95,188 @@ Mistakes are listed all at once, each with the path to the offending key:
 
 See [configuration](configuration.md) for the format.
 
+## Running as a systemd service (Linux)
+
+Create a user for it, so it doesn't run as root. It doesn't need root to see
+other users' containers either (see [permissions](#permissions)):
+
+```sh
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin zuschauer
+sudo mkdir -p /etc/zuschauer
+sudo cp config.jsonc /etc/zuschauer/config.jsonc
+```
+
+If the config holds secrets, such as a notifier token, make it readable by
+that user only:
+
+```sh
+sudo chown zuschauer: /etc/zuschauer/config.jsonc
+sudo chmod 600 /etc/zuschauer/config.jsonc
+```
+
+Then create `/etc/systemd/system/zuschauer.service`:
+
+```ini
+[Unit]
+Description=Zuschauer monitoring
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=zuschauer
+# Docker only: lets it read Docker's socket for container names. Podman needs
+# nothing. Remove it without Docker: systemd refuses to start the service when
+# the group doesn't exist.
+SupplementaryGroups=docker
+ExecStart=/usr/local/bin/zuschauer /etc/zuschauer/config.jsonc
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Start it, and have it start on boot:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now zuschauer
+```
+
+Zuschauer logs to stderr, so its messages end up in the journal:
+
+```sh
+systemctl status zuschauer
+journalctl -u zuschauer -f
+```
+
+## Running as a launchd agent (macOS)
+
+On macOS, run it as a launch agent for your own user. Running as you lets it
+find the Docker socket in your home directory (OrbStack, Docker Desktop) and
+see your user's launchd services.
+
+Put the binary and the config somewhere stable, for example:
+
+```sh
+mkdir -p ~/.config/zuschauer
+cp target/release/zuschauer /usr/local/bin/zuschauer
+cp config.jsonc ~/.config/zuschauer/config.jsonc
+```
+
+Create `~/Library/LaunchAgents/com.example.zuschauer.plist`. Replace
+`<username>` with yours: launchd doesn't expand `~`.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.zuschauer</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/zuschauer</string>
+    <string>/Users/<username>/.config/zuschauer/config.jsonc</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardErrorPath</key>
+  <string>/Users/<username>/Library/Logs/zuschauer.log</string>
+</dict>
+</plist>
+```
+
+Load it:
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.example.zuschauer.plist
+```
+
+And to stop it:
+
+```sh
+launchctl bootout gui/$(id -u)/com.example.zuschauer
+```
+
+## Permissions
+
+Zuschauer doesn't need root. What it reads, and what that requires:
+
+| What | Reads | Needs |
+| --- | --- | --- |
+| CPU, memory (Linux) | `/proc/stat`, `/proc/meminfo` | nothing |
+| Storage | the filesystem's own counters, like `df` | nothing |
+| Temperature (Linux) | `/sys/class/hwmon` | nothing |
+| Containers (Linux) | `/sys/fs/cgroup` for CPU and memory, see below for names | nothing, except for Docker's names |
+| Containers (macOS) | the Docker socket | running as the user who owns it |
+| Services | `systemctl show` (Linux), `launchctl print` (macOS) | nothing |
+
+### Container names on Linux
+
+Containers are found and measured from cgroups, whoever runs them: rootful or
+rootless, any user. Running zuschauer as its own unprivileged user still shows
+every container on the machine. Their names come from different places:
+
+- **Podman**, rootful or rootless, any user: from the command line of the
+  container's `conmon` process, which any user can read. Containers run by
+  Quadlet are named after their systemd unit instead.
+- **Docker:** from the Docker socket, which needs membership in the `docker`
+  group (see `SupplementaryGroups` above).
+
+A container whose name can't be found is shown by its short ID. That happens
+with Docker when the socket isn't readable, and on systems that mount `/proc`
+with `hidepid`, which hides other users' processes.
+
+### The Docker socket
+
+On Linux the socket is only used for Docker's container names; on macOS
+everything about containers comes from it. It's found automatically. Zuschauer
+tries, in order: `$DOCKER_HOST`, `/var/run/docker.sock`, Podman's rootful and
+rootless sockets, then OrbStack's and Docker Desktop's sockets in your home
+directory. The one it picked is logged at startup:
+
+```text
+docker: API at /var/run/docker.sock
+```
+
+If it picks the wrong one, or finds none, set it yourself. A configured socket
+is used as is, without searching:
+
+```jsonc
+"docker": {
+  "socket": "/run/user/1000/docker.sock"
+}
+```
+
+## Exposing the dashboard
+
+The dashboard has no login. Anyone who can reach it sees everything on it,
+including your app names and error messages. Keep `listen` on `127.0.0.1` and
+reach it in one of these ways:
+
+- **An SSH tunnel.** Nothing to set up on the server:
+
+  ```sh
+  ssh -L 9101:127.0.0.1:9101 my-server
+  ```
+
+  Then open <http://127.0.0.1:9101>.
+
+- **A VPN** such as Tailscale or WireGuard, with `listen` set to the server's
+  VPN address.
+
+- **A reverse proxy** (Caddy, nginx) with HTTP authentication in front of it.
+
+Scheduled jobs report their runs to zuschauer over HTTP, so they need to reach
+it too. Jobs on the same machine can use `127.0.0.1`.
+
+## Updating
+
+Build the new binary, replace the old one and restart the service. On Linux, a
+running binary can't be overwritten in place ("Text file busy"), but it can be
+replaced: copy the new one next to it, then rename it over the old one.
+
+History is kept in memory, so a restart starts the graphs from scratch.
