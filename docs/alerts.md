@@ -228,9 +228,34 @@ alerts: no notifiers configured, alerts only show on the page
 Every change is logged:
 
 ```text
-alert blog-db: firing, not running, for 1m
+alert blog-db: firing, critical, not running
 alert blog-db: resolved
 ```
+
+### `/status`
+
+`GET /status` returns the firing alerts as JSON, for scripts and other
+monitors:
+
+```json
+{
+  "alerts": [
+    {
+      "id": "blog-db",
+      "label": "Blog container blog-db",
+      "severity": "critical",
+      "detail": "not running",
+      "since": 1793050948
+    }
+  ],
+  "level": "critical"
+}
+```
+
+- `level` is the loudest severity among the alerts, or `"ok"` when none is
+  firing.
+- `since` is when the problem started, in Unix seconds.
+- Pending alerts, whose problem hasn't lasted `for` yet, aren't listed.
 
 ## Restarts
 

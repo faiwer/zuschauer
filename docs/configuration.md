@@ -92,8 +92,8 @@ otherwise. See [alerts](alerts.md).
 
 ### `listen` (required)
 
-The address and port of the dashboard, and of the endpoint that scheduled jobs
-report to.
+The address and port of the dashboard, of the endpoint that scheduled jobs
+report to, and of [`/status`](alerts.md#status).
 
 ```jsonc
 "listen": "127.0.0.1:9101"
