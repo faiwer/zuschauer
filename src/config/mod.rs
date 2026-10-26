@@ -2,7 +2,7 @@
 //!
 //! - `raw`: serde types that mirror the file
 //! - `types`: value types parsed from strings (`Percent`, `Celsius`, `Dur`,
-//!   `Severity`)
+//!   `Severity`, `OutputFrom`)
 //! - `resolve`: `RawConfig` → `Config`, defaults and validation
 //! - `resolved`: the final `Config`
 //! - `load`: read, parse, resolve
@@ -17,11 +17,11 @@ mod types;
 
 pub use load::load;
 pub use resolved::{
-    Alert, App, AppCertificate, AppJob, AppService, CertificatesConfig, Config, DockerConfig,
-    HealthCheck, Heartbeat, HostConfig, Metric, Mount, Notifier, NotifierKind, Ntfy, RestartLimit,
-    Sensor, ServicesConfig,
+    Alert, App, AppCertificate, AppCommand, AppJob, AppService, CertificatesConfig, Config,
+    DockerConfig, HealthCheck, Heartbeat, HostConfig, Metric, Mount, Notifier, NotifierKind, Ntfy,
+    OutputSlice, RestartLimit, Sensor, ServicesConfig,
 };
-pub use types::{Dur, Severity};
+pub use types::{Dur, OutputFrom, Severity};
 #[expect(unused_imports, reason = "public API, not consumed yet")]
 pub use {
     error::LoadError,

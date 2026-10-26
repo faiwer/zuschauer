@@ -9,7 +9,7 @@ use crate::cron::{Schedule, format_local};
 use crate::http::{HostPort, Url};
 use crate::model::now;
 
-use super::types::{Dur, Severity};
+use super::types::{Dur, OutputFrom, Severity};
 
 #[derive(Debug)]
 pub struct Config {
@@ -80,7 +80,31 @@ pub struct App {
     pub health_checks: Vec<HealthCheck>,
     pub certificates: Vec<AppCertificate>,
     pub services: Vec<AppService>,
+    pub commands: Vec<AppCommand>,
     pub jobs: Vec<AppJob>,
+}
+
+/// A program zuschauer runs: exit code 0 is fine, anything else a problem.
+#[derive(Debug)]
+pub struct AppCommand {
+    pub name: String,
+    /// The program, then its arguments. No shell.
+    pub run: Vec<String>,
+    pub every: Duration,
+    pub timeout: Duration,
+    /// Otherwise a run past `timeout` is a problem but keeps going.
+    pub kill_on_timeout: bool,
+    pub output: OutputSlice,
+    pub alert: Option<Alert>,
+}
+
+/// Which lines of a run's output to keep.
+#[derive(Debug, Clone, Copy)]
+pub struct OutputSlice {
+    pub from: OutputFrom,
+    pub lines: usize,
+    /// In characters. Longer lines are cut, ending in "…".
+    pub max_line_length: usize,
 }
 
 #[derive(Debug)]
@@ -229,6 +253,9 @@ impl Config {
             check.every = every;
             check.timeout = check.timeout.min(every);
         }
+        for command in self.apps.iter_mut().flat_map(|app| &mut app.commands) {
+            command.every = every;
+        }
     }
 
     pub fn alerts(&self) -> impl Iterator<Item = &Alert> {
@@ -238,11 +265,13 @@ impl Config {
             let containers = app.containers.iter().map(|c| &c.alert);
             let certificates = app.certificates.iter().map(|c| &c.alert);
             let services = app.services.iter().map(|s| &s.alert);
+            let commands = app.commands.iter().map(|c| &c.alert);
             let jobs = app.jobs.iter().map(|j| &j.alert);
             checks
                 .chain(containers)
                 .chain(certificates)
                 .chain(services)
+                .chain(commands)
                 .chain(jobs)
         });
         [&host.cpu.alert, &host.memory.alert]
@@ -263,6 +292,7 @@ impl Config {
             alerts.extend(app.containers.iter_mut().map(|c| &mut c.alert));
             alerts.extend(app.certificates.iter_mut().map(|c| &mut c.alert));
             alerts.extend(app.services.iter_mut().map(|s| &mut s.alert));
+            alerts.extend(app.commands.iter_mut().map(|c| &mut c.alert));
             alerts.extend(app.jobs.iter_mut().map(|j| &mut j.alert));
         }
         alerts.into_iter().flatten().collect()
@@ -325,6 +355,9 @@ impl fmt::Display for Config {
             writeln!(f)?;
             for check in &app.health_checks {
                 writeln!(f, "apps.{}.{}: {check}", app.id, check.name)?;
+            }
+            for command in &app.commands {
+                writeln!(f, "apps.{}.commands.{}: {command}", app.id, command.name)?;
             }
             for job in &app.jobs {
                 writeln!(f, "apps.{}.jobs.{}: {job}", app.id, job.name)?;
@@ -403,6 +436,28 @@ impl fmt::Display for HealthCheck {
             write!(f, ", content type {content_type}")?;
         }
         Ok(())
+    }
+}
+
+impl fmt::Display for AppCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let from = match self.output.from {
+            OutputFrom::Head => "first",
+            OutputFrom::Tail => "last",
+        };
+        write!(
+            f,
+            "runs {:?} every {}, timeout {}{}, keeps the {from} {} line(s) of output",
+            self.run,
+            Dur::from(self.every),
+            Dur::from(self.timeout),
+            if self.kill_on_timeout {
+                ", then killed"
+            } else {
+                ", then left running"
+            },
+            self.output.lines,
+        )
     }
 }
 

@@ -126,6 +126,15 @@ impl fmt::Display for Severity {
     }
 }
 
+/// Which end of a command's output to keep.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFrom {
+    Head,
+    #[default]
+    Tail,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

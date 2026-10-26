@@ -7,6 +7,7 @@ use crate::config::types::Dur;
 use crate::http::HostPort;
 
 use super::alerts::{AlertNames, state_alert, watched_alert};
+use super::commands::app_commands;
 use super::every::{DEFAULT_EVERY, every};
 use super::jobs::app_jobs;
 use super::services::app_services;
@@ -95,6 +96,7 @@ fn app(
         errors,
     );
 
+    let commands = app_commands(&at, &id, &name, raw.commands.unwrap_or_default(), errors);
     let jobs = app_jobs(&at, &id, &name, raw.jobs.unwrap_or_default(), errors);
 
     let raw_checks = raw.health_checks.unwrap_or_default();
@@ -102,10 +104,11 @@ fn app(
         && containers.is_empty()
         && certificates.is_empty()
         && services.is_empty()
+        && commands.is_empty()
         && jobs.is_empty()
     {
         errors.push(format!(
-            "{at}: nothing to monitor, add healthChecks, containers, certificates, services or jobs"
+            "{at}: nothing to monitor, add healthChecks, containers, certificates, services, commands or jobs"
         ));
     }
     let mut check_names = HashSet::new();
@@ -132,6 +135,7 @@ fn app(
         health_checks,
         certificates,
         services,
+        commands,
         jobs,
     }
 }

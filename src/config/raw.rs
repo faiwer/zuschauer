@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use crate::http::Url;
 
-use super::types::{Celsius, Dur, Percent, Severity};
+use super::types::{Celsius, Dur, OutputFrom, Percent, Severity};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -82,8 +82,31 @@ pub struct RawApp {
     pub certificates: Option<BTreeMap<String, RawWatched>>,
     /// Keyed by systemd unit on Linux, launchd label on macOS.
     pub services: Option<BTreeMap<String, RawService>>,
+    /// Keyed by name.
+    pub commands: Option<BTreeMap<String, RawCommand>>,
     /// Keyed by name, as the job's URLs use it.
     pub jobs: Option<BTreeMap<String, RawJob>>,
+}
+
+/// A program zuschauer runs on its own schedule.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawCommand {
+    /// The program, then its arguments.
+    pub run: Vec<String>,
+    pub every: Option<Dur>,
+    pub timeout: Option<Dur>,
+    pub kill_on_timeout: Option<bool>,
+    pub output: Option<RawOutput>,
+    pub alert: Option<RawAlert>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawOutput {
+    pub position: Option<OutputFrom>,
+    pub lines: Option<usize>,
+    pub max_line_length: Option<usize>,
 }
 
 /// A scheduled job that reports its runs over HTTP.

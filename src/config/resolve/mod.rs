@@ -6,6 +6,7 @@
 //! - `host`: CPU, memory, storage and temperature
 //! - `apps`: apps with their health checks, containers and certificates
 //! - `services`: apps' services and their shared settings
+//! - `commands`: apps' commands, the programs zuschauer runs
 //! - `jobs`: apps' scheduled jobs
 //! - `alerts`: alert IDs, labels and dependencies
 //! - `notifiers`: notifiers
@@ -15,6 +16,7 @@
 
 mod alerts;
 mod apps;
+mod commands;
 mod every;
 mod heartbeat;
 mod host;
