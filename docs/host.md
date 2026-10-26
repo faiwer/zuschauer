@@ -39,12 +39,12 @@ temperature sensors.
 }
 ```
 
-| What | Linux | macOS | Watched without config |
-| --- | --- | --- | --- |
-| CPU | yes | yes | yes, every minute |
-| Memory | yes | yes | yes, every minute |
-| Storage | yes | yes | no: list the mounts you care about |
-| Temperature | yes | no | no: list the sensors you care about |
+| What | Linux | macOS | FreeBSD | Watched without config |
+| --- | --- | --- | --- | --- |
+| CPU | yes | yes | yes | yes, every minute |
+| Memory | yes | yes | yes | yes, every minute |
+| Storage | yes | yes | yes | no: list the mounts you care about |
+| Temperature | yes | no | yes | no: list the sensors you care about |
 
 Nothing here needs root, see [permissions](installation.md#permissions).
 
@@ -69,7 +69,8 @@ A shorter `every` catches short spikes in the graph; a longer one smooths them
 out. Either way, the alert only fires if the load stays high for the whole
 `for`, so a short `every` doesn't make alerts noisier.
 
-On Linux it's read from `/proc/stat`.
+On Linux it's read from `/proc/stat`, on FreeBSD from the `kern.cp_time`
+sysctl.
 
 ## Memory
 
@@ -95,6 +96,12 @@ Where the numbers come from:
   own estimate of what's free for new programs.
 - **macOS:** what Activity Monitor calls "Memory Used": app memory, wired and
   compressed memory. File cache and purgeable memory are left out.
+- **FreeBSD:** has no estimate like `MemAvailable`, so zuschauer adds it up from
+  sysctls, out of `hw.physmem`. Used is the kernel's own wired memory, minus
+  the caches it can give back (the buffer cache and the shrinkable part of
+  ZFS's ARC), plus the anonymous memory of programs that's in RAM: what would
+  go to swap under pressure. Program memory counts whether it's active,
+  inactive or locked; file cache doesn't count wherever it is.
 
 ## Storage
 
@@ -139,8 +146,8 @@ have space only root can use.
 ## Temperature
 
 Hardware sensors: CPU, NVMe drives, the board, and whatever else the drivers
-report. Linux only: they come from the kernel's `hwmon` interface, which macOS
-doesn't have.
+report. They come from the kernel's `hwmon` interface on Linux, and from
+sysctls on FreeBSD. macOS has neither.
 
 ### Finding sensor names
 
@@ -157,9 +164,25 @@ zuschauer --sensors
 "nvme/Sensor 2"         44.9C
 ```
 
-Each name is `driver/label`, already quoted the way the config wants it. A
-sensor without a label is named after its file, like `temp1`. These names
-stay the same across reboots, unlike the `hwmonN` directories they come from.
+On Linux, each name is `driver/label`, already quoted the way the config wants
+it. A sensor without a label is named after its file, like `temp1`. These
+names stay the same across reboots, unlike the `hwmonN` directories they come
+from.
+
+On FreeBSD, each name is the sysctl it's read from. Any temperature under
+`dev` or `hw.acpi` is listed:
+
+```text
+"dev.cpu.0.temperature"            52.0C
+"dev.cpu.1.temperature"            50.0C
+"hw.acpi.thermal.tz0.temperature"  27.9C
+```
+
+CPU temperatures need the driver for your CPU loaded, `coretemp` for Intel or
+`amdtemp` for AMD. Load it now with `kldload coretemp`, and on every boot with
+`coretemp_load="YES"` in `/boot/loader.conf`. ACPI's limits, like
+`hw.acpi.thermal.tz0._CRT`, are temperatures too and show up in the list, but
+they're fixed values, not readings.
 
 ### Watching sensors
 

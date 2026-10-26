@@ -6,6 +6,7 @@
 - [Design choices](#design-choices)
 - [Web UI](#web-ui)
 - [Testing on Linux from a Mac](#testing-on-linux-from-a-mac)
+- [Testing on FreeBSD](#testing-on-freebsd)
 
 ## Running it locally
 
@@ -15,8 +16,9 @@ cargo run -- --check config.jsonc
 ```
 
 The dashboard is then at `http://127.0.0.1:9101`, or whatever `listen` says.
-It runs on macOS too, but some collectors only exist on Linux: containers via
-cgroups, temperatures via hwmon, and services via systemd.
+Each OS has its own collectors for CPU, memory, containers, services and
+temperatures, so testing on macOS doesn't cover Linux or FreeBSD, and macOS has
+no temperatures at all. The rest is the same everywhere.
 
 ## Git hooks
 
@@ -68,3 +70,17 @@ Cross-compile as in the [installation guide](installation.md#cross-compiling-for
 then run the binary in a Linux container with Docker. For anything that needs
 systemd, like rootless Podman or services, use an image that runs systemd as
 its init.
+
+## Testing on FreeBSD
+
+On FreeBSD, build as in the [installation guide](installation.md#building-on-freebsd);
+`cargo clippy` and `cargo test` there check the FreeBSD-only code. From another
+OS, do the same in a FreeBSD virtual machine, for example under QEMU, copying
+the source over with `rsync` and leaving out `target`.
+
+- **Containers:** any jail will do, `jail -c name=test path=/ persist`. Podman
+  needs ZFS for its storage, `fdescfs` mounted on `/dev/fd`, and `pf` for pods.
+- **Services:** the base system's, like `sshd` and `cron`.
+- **Temperature:** a virtual machine usually has no sensors. A small kernel
+  module that adds a read-only `IK` sysctl under `dev`, like
+  `dev.<name>.0.temperature`, works as a fake one.

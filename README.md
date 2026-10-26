@@ -15,17 +15,17 @@ when something goes wrong.
   prints it back with every default filled in.
 - **Lightweight.** Written to be fast and to eat as little as possible: almost
   zero CPU and under 5 MiB of RAM.
-- **Linux and macOS.** Built for a home server or a single VPS; runs on a
-  laptop too.
+- **Linux, FreeBSD and macOS.** Built for a home server or a single VPS; runs
+  on a laptop too.
 - **No root needed.** Runs as its own unprivileged user.
 
 ## What it watches
 
 | Area | What | Docs |
 | --- | --- | --- |
-| Host | CPU, memory, storage, temperature sensors (Linux) | [host](docs/host.md) |
-| Docker | Every container's status, CPU and memory; Podman works too | [apps](docs/apps.md) |
-| Apps | A named group of containers, HTTP health checks, TLS certificates, systemd or launchd services and scheduled jobs | [apps](docs/apps.md) |
+| Host | CPU, memory, storage, temperature sensors (Linux, FreeBSD) | [host](docs/host.md) |
+| Docker | Every container's status, CPU and memory; Podman works too, and so do jails on FreeBSD | [apps](docs/apps.md) |
+| Apps | A named group of containers, HTTP health checks, TLS certificates, systemd, launchd or rc.d services and scheduled jobs | [apps](docs/apps.md) |
 | Alerts | "Above X for Y" thresholds, severities, alerts that wait for others | [alerts](docs/alerts.md) |
 | Notifications | [ntfy](https://ntfy.sh) | [notifiers](docs/notifiers.md) |
 | Heartbeat | A regular request to a service like healthchecks.io, so you learn when the machine itself is down | [heartbeat](docs/heartbeat.md) |
@@ -93,7 +93,7 @@ zuschauer --sensors          list temperature sensors with their current reading
 ## Documentation
 
 - [Installation](docs/installation.md): building, cross-compiling, running as a
-  systemd or launchd service.
+  systemd, launchd or rc.d service.
 - [Configuration](docs/configuration.md): the file format, durations,
   percentages and temperatures, top-level settings.
 - [Host](docs/host.md): CPU, memory, storage and temperature.

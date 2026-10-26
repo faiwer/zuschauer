@@ -109,9 +109,13 @@ turns container monitoring on:
 The name is the one the Containers panel shows: the container's name, or the
 systemd unit's name for containers run by Quadlet. Docker and Podman both
 work, rootful or rootless, see [container names](installation.md#container-names-on-linux).
+On FreeBSD, containers are jails, named as `jls name` shows them, and Podman's
+containers by their Podman name, see [container names on
+FreeBSD](installation.md#container-names-on-freebsd).
 
 A container is fine while it's running. Paused, stopped, removed, or never
-seen since zuschauer started all count as problems.
+seen since zuschauer started all count as problems. Jails can't be paused, and
+a stopped jail no longer exists, so it shows as gone, like a removed container.
 
 Each container's CPU and memory are graphed, and the app's row shows their sum.
 Containers that aren't part of any app still appear in the Containers panel,
@@ -229,11 +233,17 @@ The name depends on the OS:
 - **macOS:** a launchd label, like `com.example.agent`. It's looked up in your
   user's domain first, then in the system's. To pick the domain yourself, write
   the full target: `gui/501/com.example.agent`, `system/com.example.daemon`.
+- **FreeBSD:** an rc.d script's name, as `service` knows it: `nginx`, `sshd`.
+  Each one is checked with `service <name> onestatus`, so it doesn't have to be
+  enabled in `rc.conf`.
 
 A service is fine while it's running. Stopped, starting, stopping, failed,
 restarting, or not found all count as problems, with the reason shown, such
 as "failed, exit code 1". On Linux, a `oneshot` unit (one that runs and exits)
-is only a problem when its last run failed.
+is only a problem when its last run failed. On FreeBSD a few services can't be
+checked at all: a script without a status command, and one whose pid file
+zuschauer can't read, which shows as "can't check it", see [services on
+FreeBSD](installation.md#services-on-freebsd).
 
 ### Restart loops
 
@@ -252,6 +262,9 @@ right away, without waiting for `for`. `within` can't be shorter than
 `services.every`, since restarts are counted between checks. Once the count
 passes half the limit, the app's dialog shows it, like "2 of 3 restarts in
 1h".
+
+On FreeBSD rc.d doesn't restart services, so there's nothing to count:
+`restarts` is rejected there.
 
 ## Jobs
 
