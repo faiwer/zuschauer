@@ -275,6 +275,71 @@ passes half the limit, the app's dialog shows it, like "2 of 3 restarts in
 On FreeBSD rc.d doesn't restart services, so there's nothing to count:
 `restarts` is rejected there.
 
+## Commands
+
+Programs zuschauer runs on a schedule to check something it can't see by
+itself: a disk's SMART status, a queue's length, a backup's age. Exit code `0`
+means fine, anything else is a problem, or a [warning](#warnings) for the codes
+you list. This is how [Nagios plugins](https://nagios-plugins.org/) report, the
+checks Nagios, Icinga and Checkmk run, so they work in zuschauer too.
+
+```jsonc
+"commands": {
+  "smart": {
+    "run": ["/usr/local/sbin/smartctl", "-H", "/dev/ada0"],
+    "every": "5m",
+    "timeout": "30s",
+    "output": { "position": "tail", "lines": 1 },
+    "alert": { "severity": "critical" }
+  }
+}
+```
+
+| Key | Default | |
+| --- | --- | --- |
+| `run` | required | The program and its arguments, see below. |
+| `every` | `"1m"` | How often it runs. |
+| `timeout` | `"10s"` | How long a run may take before it counts as a problem. Can be longer than `every`. |
+| `killOnTimeout` | `true` | Whether a run past `timeout` is killed, see below. |
+| `warnOn` | none | Exit codes that mean a warning rather than a failure, like `[1]`, see below. |
+| `output.position` | `"tail"` | Which lines of the output to keep: `"head"`, the first ones, or `"tail"`, the last ones. |
+| `output.lines` | `1` | How many lines to keep, 1 to 50. |
+| `output.maxLineLength` | `512` | Longer lines are cut, ending with "…". |
+| `alert` | none | A [state alert](#alerts). |
+
+`run` is the program and its arguments, run directly, not through a shell, so
+there's no quoting, `$VARIABLES`, `|` or `>`. For those, run a shell:
+`["/bin/sh", "-c", "df -P / | tail -1"]`. Use an absolute path: services
+started by systemd or rc.d get a short `PATH`. The program runs as zuschauer's
+own user, with no input.
+
+Its stdout and stderr are read together, in the order they were written, and
+blank lines are skipped. On failure, the lines `output` keeps follow the
+reason, like "exit 2: DISK CRITICAL", and that's what the alert's notification
+says. The app's dialog shows them too, and on success shows them as they are,
+like "SMART OK". The dialog also shows how long the last run took and, while
+one is going, how long it's been running.
+
+### Warnings
+
+Exit codes listed in `warnOn` count as a warning: the command shows yellow
+instead of red, and a `critical` alert fires as a `warning`. A failure after a
+warning announces the alert again, now as `critical`. Nagios plugins exit with `1` for a warning, so give them
+`"warnOn": [1]`. Don't add it for ordinary scripts: most of them exit with `1`
+on any failure.
+
+### Timeouts
+
+A run that takes too long:
+
+- with `killOnTimeout`, it's killed after `timeout`, along with anything it
+  started, and counts as a problem: "no answer within 30s, killed";
+- without it, it counts as a problem right away, "still running after 30s",
+  and keeps running. Once it finishes, its result replaces that.
+
+Runs never overlap: when one is still going at the next `every`, that run is
+skipped. Until the first run finishes, the command has no status yet.
+
 ## Jobs
 
 Scheduled jobs, such as a nightly backup, that report to zuschauer when they

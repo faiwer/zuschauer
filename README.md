@@ -18,8 +18,8 @@ when something goes wrong.
 - **Linux, FreeBSD and macOS.** Built for a home server or a single VPS; runs
   on a laptop too.
 - **No root needed.** Runs as its own unprivileged user.
-- **Your own checks.** Any script or program can be a check: exit code `0` is
-  fine, anything else a problem.
+- **Your own checks.** Any script or program can be a check. Nagios plugins work
+  too.
 
 ## What it watches
 
