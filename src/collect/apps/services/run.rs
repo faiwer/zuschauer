@@ -11,6 +11,8 @@ use super::unit::Unit;
 
 #[cfg(target_os = "macos")]
 use super::launchd::Reader;
+#[cfg(target_os = "freebsd")]
+use super::rc::Reader;
 #[cfg(target_os = "linux")]
 use super::systemd::Reader;
 

@@ -82,6 +82,11 @@ fn restart_limit(
     config: &ServicesConfig,
     errors: &mut Vec<String>,
 ) -> RestartLimit {
+    if cfg!(target_os = "freebsd") {
+        errors.push(format!(
+            "{at}.alert.restarts: not supported on FreeBSD, rc.d doesn't restart services"
+        ));
+    }
     let within = raw.within.get();
     if within < config.every {
         errors.push(format!(
@@ -98,8 +103,6 @@ fn restart_limit(
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use crate::config::raw::RawConfig;
     use crate::config::resolve::resolve;
 
@@ -108,7 +111,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "freebsd"))]
     fn resolves_services() {
+        use std::time::Duration;
+
         let config = resolve(parse(
             r#"{
                 "listen": "127.0.0.1:9100",
@@ -159,8 +165,10 @@ mod tests {
             }"#,
         ))
         .unwrap_err();
-        // Three bad names, `within` shorter than `every`.
-        assert_eq!(errors.len(), 4, "{errors:#?}");
+        // Three bad names, `within` shorter than `every`, and on FreeBSD
+        // `restarts` at all.
+        let expected = if cfg!(target_os = "freebsd") { 5 } else { 4 };
+        assert_eq!(errors.len(), expected, "{errors:#?}");
 
         let result: Result<RawConfig, _> = serde_json::from_str(
             r#"{ "listen": "127.0.0.1:9100", "apps": { "a": { "services": { "s": { "alert": { "restarts": { "above": 1 } } } } } } }"#,
