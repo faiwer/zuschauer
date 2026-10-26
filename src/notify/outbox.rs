@@ -5,9 +5,10 @@ use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout};
 
 use crate::config::{Config, Dur, Notifier, NotifierKind};
+use crate::http::Response;
 
 use super::message::Message;
-use super::ntfy;
+use super::{ntfy, webhook};
 
 /// Messages waiting per notifier; more are dropped while it's unreachable.
 const QUEUE: usize = 64;
@@ -106,5 +107,21 @@ async fn deliver(
 async fn publish(notifier: &Notifier, context: &str, message: &Message) -> Result<(), Failure> {
     match &notifier.kind {
         NotifierKind::Ntfy(config) => ntfy::publish(config, context, message).await,
+        NotifierKind::Webhook(config) => webhook::publish(config, context, message).await,
+    }
+}
+
+/// Any 2xx is delivered; 429 and 5xx may pass later.
+pub(super) fn judge(response: &Response) -> Result<(), Failure> {
+    let status = response.head.status;
+    if (200..300).contains(&status) {
+        return Ok(());
+    }
+    let text = String::from_utf8_lossy(&response.body[..response.body.len().min(200)]);
+    let reason = format!("HTTP {status}: {}", text.trim());
+    if status == 429 || status >= 500 {
+        Err(Failure::Retry(reason))
+    } else {
+        Err(Failure::Rejected(reason))
     }
 }

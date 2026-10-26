@@ -774,6 +774,7 @@ dependencies = [
  "json_comments",
  "libc",
  "maud",
+ "ring",
  "rustls-native-certs",
  "serde",
  "serde_json",

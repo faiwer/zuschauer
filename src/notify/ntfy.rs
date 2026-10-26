@@ -9,7 +9,7 @@ use crate::config::{Ntfy, Severity};
 use crate::http::{Url, describe, post_json};
 
 use super::message::Message;
-use super::outbox::Failure;
+use super::outbox::{Failure, judge};
 
 static DEFAULT_ADDRESS: LazyLock<Url> = LazyLock::new(|| {
     Url::try_from("https://ntfy.sh".to_owned()).expect("the default address is a valid URL")
@@ -45,15 +45,5 @@ pub(super) async fn publish(
     let response = post_json(address, &headers, body.as_bytes())
         .await
         .map_err(|e| Failure::Retry(describe(&e)))?;
-    let status = response.head.status;
-    if (200..300).contains(&status) {
-        return Ok(());
-    }
-    let text = String::from_utf8_lossy(&response.body[..response.body.len().min(200)]);
-    let reason = format!("HTTP {status}: {}", text.trim());
-    if status == 429 || status >= 500 {
-        Err(Failure::Retry(reason))
-    } else {
-        Err(Failure::Rejected(reason))
-    }
+    judge(&response)
 }
