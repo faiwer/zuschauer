@@ -9,7 +9,7 @@ when something goes wrong.
 
 ## Why
 
-- **One binary.** A single executable (~1 MiB) file with the web UI built in. No
+- **One binary.** A single executable (~3 MiB) file with the web UI built in. No
   database, no agents, no exporters.
 - **One config file.** JSON with comments. `zuschauer --check` validates it and
   prints it back with every default filled in.

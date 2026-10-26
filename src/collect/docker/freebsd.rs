@@ -160,11 +160,10 @@ fn processes() -> io::Result<Vec<libc::kinfo_proc>> {
             )
         };
         if status != 0 {
-            let e = sysctl_error();
-            if e.raw_os_error() == Some(libc::ENOMEM) {
+            if io::Error::last_os_error().raw_os_error() == Some(libc::ENOMEM) {
                 continue;
             }
-            return Err(e);
+            return Err(sysctl_error());
         }
         processes.truncate(size / size_of::<libc::kinfo_proc>());
         if let Some(process) = processes.first()

@@ -81,7 +81,7 @@ mod sys {
                 Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
                     BUFFER_SIZE.store(buffer.len() * 2, Ordering::Relaxed);
                 }
-                Err(e) => return Err(e),
+                Err(e) => return Err(named(name, e)),
             }
         }
     }
@@ -89,7 +89,7 @@ mod sys {
     /// An unsigned integer sysctl of either width.
     fn number(name: &CStr) -> io::Result<u64> {
         let mut buffer = [0u8; 8];
-        match sysctl(name, &mut buffer)? {
+        match sysctl(name, &mut buffer).map_err(|e| named(name, e))? {
             4 => Ok(u64::from(u32::from_ne_bytes([
                 buffer[0], buffer[1], buffer[2], buffer[3],
             ]))),
@@ -101,7 +101,8 @@ mod sys {
         }
     }
 
-    /// Returns the number of bytes written.
+    /// Returns the number of bytes written. Errors keep their OS code, so
+    /// callers can tell `ENOMEM` apart.
     fn sysctl(name: &CStr, buffer: &mut [u8]) -> io::Result<usize> {
         let mut size = buffer.len();
         // SAFETY: `name` is NUL-terminated and `buffer` is writable for
@@ -116,13 +117,13 @@ mod sys {
             )
         };
         if status != 0 {
-            let e = io::Error::last_os_error();
-            return Err(io::Error::new(
-                e.kind(),
-                format!("{}: {e}", name.to_string_lossy()),
-            ));
+            return Err(io::Error::last_os_error());
         }
         Ok(size)
+    }
+
+    fn named(name: &CStr, e: io::Error) -> io::Error {
+        io::Error::new(e.kind(), format!("{}: {e}", name.to_string_lossy()))
     }
 }
 
