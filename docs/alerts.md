@@ -26,7 +26,7 @@ see [host](host.md#threshold-alerts).
 ```
 
 **State alerts** watch whether something works: containers, health checks,
-certificates, services and jobs, see [apps](apps.md#alerts).
+certificates, services, commands and jobs, see [apps](apps.md#alerts).
 
 ```jsonc
 "containers": {

@@ -122,7 +122,7 @@ Each section has its own page:
 | --- | --- | --- |
 | `host` | CPU, memory, storage, temperature | [host](host.md) |
 | `docker` | Turns container monitoring on | [apps](apps.md) |
-| `apps` | Containers, health checks, certificates, services and jobs, grouped per app | [apps](apps.md) |
+| `apps` | Containers, health checks, certificates, services, commands and jobs, grouped per app | [apps](apps.md) |
 | `certificates` | How often certificates are checked, and when expiry becomes a warning | [apps](apps.md) |
 | `services` | How often services are checked | [apps](apps.md) |
 | `notifiers` | Where alerts are sent | [notifiers](notifiers.md) |

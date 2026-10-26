@@ -2,8 +2,8 @@
 
 An app is a named group of everything one service of yours depends on: its
 containers, the URLs it answers on, its TLS certificates, the system services
-it runs as, and its scheduled jobs. Each app gets a row on the dashboard with
-one overall status:
+it runs as, commands that check it, and its scheduled jobs. Each app gets a row
+on the dashboard with one overall status:
 
 ![The Apps panel](apps.webp)
 
@@ -17,6 +17,7 @@ Clicking the row opens a dialog with each part:
 - [Health checks](#health-checks)
 - [Certificates](#certificates)
 - [Services](#services)
+- [Commands](#commands)
 - [Jobs](#jobs)
 - [Alerts](#alerts)
 
@@ -50,6 +51,13 @@ Clicking the row opens a dialog with each part:
     "services": {
       "nginx.service": { "alert": { "for": "5m" } }
     },
+    "commands": {
+      "queue": {
+        "run": ["/usr/local/bin/check-queue", "--max", "100"],
+        "every": "5m",
+        "alert": {}
+      }
+    },
     "jobs": {
       "backup": {
         "token": "change-me-to-a-long-random-string",
@@ -76,6 +84,7 @@ single health check.
 | `healthChecks` | none | See [health checks](#health-checks). |
 | `certificates` | none | See [certificates](#certificates). |
 | `services` | none | See [services](#services). |
+| `commands` | none | See [commands](#commands). |
 | `jobs` | none | See [jobs](#jobs). |
 
 The ID is part of the jobs' URLs, so an app with jobs needs an ID of letters,

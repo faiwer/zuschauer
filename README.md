@@ -18,6 +18,8 @@ when something goes wrong.
 - **Linux, FreeBSD and macOS.** Built for a home server or a single VPS; runs
   on a laptop too.
 - **No root needed.** Runs as its own unprivileged user.
+- **Your own checks.** Any script or program can be a check: exit code `0` is
+  fine, anything else a problem.
 
 ## What it watches
 
@@ -25,7 +27,7 @@ when something goes wrong.
 | --- | --- | --- |
 | Host | CPU, memory, storage, temperature sensors (Linux, FreeBSD) | [host](docs/host.md) |
 | Docker | Every container's status, CPU and memory; Podman works too, and so do jails on FreeBSD | [apps](docs/apps.md) |
-| Apps | A named group of containers, HTTP health checks, TLS certificates, systemd, launchd or rc.d services and scheduled jobs | [apps](docs/apps.md) |
+| Apps | A named group of containers, HTTP health checks, TLS certificates, systemd, launchd or rc.d services, commands zuschauer runs and scheduled jobs | [apps](docs/apps.md) |
 | Alerts | "Above X for Y" thresholds, severities, alerts that wait for others | [alerts](docs/alerts.md) |
 | Notifications | [ntfy](https://ntfy.sh) | [notifiers](docs/notifiers.md) |
 | Heartbeat | A regular request to a service like healthchecks.io, so you learn when the machine itself is down | [heartbeat](docs/heartbeat.md) |
@@ -88,7 +90,7 @@ To keep it running in the background, see [installation](docs/installation.md).
 zuschauer [CONFIG]           run, with CONFIG defaulting to ./config.jsonc
 zuschauer --check [CONFIG]   validate the config, print it with defaults applied, and exit
 zuschauer --state [CONFIG]   read everything the config watches once, print it, and exit
-  --only PARTS               with --state, only some of: host, containers, checks, certificates, services
+  --only PARTS               with --state, only some of: host, containers, checks, certificates, services, commands
   --every DURATION           with --state, read and print again every DURATION, like 5s, until Ctrl-C
 zuschauer --sensors          list temperature sensors with their current readings, and exit
 ```
@@ -100,8 +102,8 @@ zuschauer --sensors          list temperature sensors with their current reading
 - [Configuration](docs/configuration.md): the file format, durations,
   percentages and temperatures, top-level settings.
 - [Host](docs/host.md): CPU, memory, storage and temperature.
-- [Apps](docs/apps.md): containers, health checks, certificates, services and
-  jobs.
+- [Apps](docs/apps.md): containers, health checks, certificates, services,
+  commands and jobs.
 - [Alerts](docs/alerts.md): thresholds, severities, dependencies, firing and
   resolving.
 - [Notifiers](docs/notifiers.md): sending alerts to ntfy.
