@@ -7,9 +7,8 @@ use super::raw::RawConfig;
 use super::resolve::resolve;
 use super::resolved::Config;
 
-/// Reads, parses and validates the config. It's leaked on purpose: the config
-/// is read once and lives for the whole run.
-pub fn load(path: &Path) -> Result<&'static Config, LoadError> {
+/// Reads, parses and validates the config.
+pub fn load(path: &Path) -> Result<Config, LoadError> {
     let text = std::fs::read_to_string(path).map_err(LoadError::Read)?;
     // Comments are replaced with whitespace, so serde_json's line:column
     // positions still match the original file.
@@ -23,6 +22,5 @@ pub fn load(path: &Path) -> Result<&'static Config, LoadError> {
         at: ".".to_owned(),
         source,
     })?;
-    let config = resolve(raw).map_err(LoadError::Invalid)?;
-    Ok(Box::leak(Box::new(config)))
+    resolve(raw).map_err(LoadError::Invalid)
 }

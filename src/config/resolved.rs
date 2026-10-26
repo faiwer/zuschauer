@@ -209,6 +209,28 @@ impl Threshold {
 }
 
 impl Config {
+    /// Reads everything every `every` instead, for `--state --every`.
+    pub fn set_every(&mut self, every: Duration) {
+        let host = &mut self.host;
+        host.cpu.every = every;
+        host.memory.every = every;
+        for mount in &mut host.storage {
+            mount.metric.every = every;
+        }
+        for sensor in &mut host.temperature {
+            sensor.every = every;
+        }
+        if let Some(docker) = &mut self.docker {
+            docker.every = every;
+        }
+        self.certificates.every = every;
+        self.services.every = every;
+        for check in self.apps.iter_mut().flat_map(|app| &mut app.health_checks) {
+            check.every = every;
+            check.timeout = check.timeout.min(every);
+        }
+    }
+
     pub fn alerts(&self) -> impl Iterator<Item = &Alert> {
         let host = &self.host;
         let apps = self.apps.iter().flat_map(|app| {

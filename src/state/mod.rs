@@ -1,5 +1,6 @@
-//! `--state`: runs the collectors once, prints what they found, and exits.
-//! Jobs and alerts are left out: they only mean something with history.
+//! `--state`: runs the collectors, prints what they found, and exits, or
+//! with `--every` prints again on that interval until killed. Jobs and
+//! alerts are left out: they only mean something with history.
 //!
 //! - `parts`: the `--only` list
 //! - `wait`: waits until every selected reading is in

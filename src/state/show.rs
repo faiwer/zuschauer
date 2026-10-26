@@ -1,4 +1,7 @@
-use std::io::Write;
+use std::io::{IsTerminal, Write};
+use std::time::Duration;
+
+use tokio::time::sleep;
 
 use crate::collect::{self, Parts};
 use crate::config::Config;
@@ -6,19 +9,36 @@ use crate::config::Config;
 use super::print::render;
 use super::wait::settle;
 
+/// Moves to the top left and clears the screen.
+const CLEAR: &str = "\x1b[H\x1b[2J";
+
+/// Prints once, or with `every` again and again until killed. The collectors
+/// should already run on `every` then.
 #[tokio::main(flavor = "current_thread")]
-pub async fn show(config: &'static Config, parts: Parts) -> ! {
+pub async fn show(config: &'static Config, parts: Parts, every: Option<Duration>) -> ! {
     collect::spawn(config, parts);
     settle(config, parts).await;
-    let mut stdout = std::io::stdout();
-    let _ = stdout.write_all(render(config, parts, terminal_width()).as_bytes());
-    let _ = stdout.flush();
+    let mut first = true;
+    loop {
+        let mut text = render(config, parts, terminal_width());
+        if every.is_some() && std::io::stdout().is_terminal() {
+            text.insert_str(0, CLEAR);
+        } else if !first {
+            text.insert(0, '\n');
+        }
+        let mut stdout = std::io::stdout();
+        let _ = stdout.write_all(text.as_bytes());
+        let _ = stdout.flush();
+        let Some(every) = every else { break };
+        first = false;
+        sleep(every).await;
+    }
     // Shutting the runtime down would wait for a storage read stuck on a
     // hung network mount.
     std::process::exit(0)
 }
 
-/// `None` when stdout isn't a terminal.
+/// `None` when stdout isn't a terminal, or one that doesn't know its size.
 fn terminal_width() -> Option<usize> {
     // SAFETY: `winsize` is plain integers, for which all-zero is valid.
     let mut size: libc::winsize = unsafe { std::mem::zeroed() };

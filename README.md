@@ -89,6 +89,7 @@ zuschauer [CONFIG]           run, with CONFIG defaulting to ./config.jsonc
 zuschauer --check [CONFIG]   validate the config, print it with defaults applied, and exit
 zuschauer --state [CONFIG]   read everything the config watches once, print it, and exit
   --only PARTS               with --state, only some of: host, containers, checks, certificates, services
+  --every DURATION           with --state, read and print again every DURATION, like 5s, until Ctrl-C
 zuschauer --sensors          list temperature sensors with their current readings, and exit
 ```
 
