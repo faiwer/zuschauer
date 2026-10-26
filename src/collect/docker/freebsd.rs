@@ -1,4 +1,6 @@
 //! Containers are jails, found with `jail_get(2)` and named after the jail.
+//! Podman's jails are named by container ID instead, nested in the pod's
+//! infra container as `<infra ID>.<ID>`, so their names come from the API.
 //! CPU and memory are summed from the process table by jail ID, which needs
 //! neither root nor `kern.racct.enable`. A reaped process's CPU time moves to
 //! its parent, so it's lost only when that parent is outside the jail.
@@ -23,9 +25,13 @@ pub(super) async fn read(_api: Option<&Api>) -> io::Result<Snapshot> {
         .into_iter()
         .map(|(jid, name)| {
             let usage = usage.get(&jid).copied().unwrap_or_default();
+            let (id, name) = match podman_id(&name) {
+                Some(id) => (id.to_owned(), None),
+                None => (jid.to_string(), Some(name)),
+            };
             Reading {
-                id: jid.to_string(),
-                name: Some(name),
+                id,
+                name,
                 at,
                 cpu_usage_usec: usage.cpu_usec,
                 memory: Some(usage.resident_pages * page_size),
@@ -37,6 +43,13 @@ pub(super) async fn read(_api: Option<&Api>) -> io::Result<Snapshot> {
         cores: cores(),
         containers,
     })
+}
+
+/// The container ID when the jail is a Podman container.
+fn podman_id(jail_name: &str) -> Option<&str> {
+    let last = jail_name.rsplit('.').next()?;
+    let is_id = last.len() == 64 && last.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+    is_id.then_some(last)
 }
 
 /// Jail ID and name of every live jail, nested ones included.
@@ -182,4 +195,22 @@ fn cores() -> u32 {
     // SAFETY: sysconf has no preconditions.
     let n = unsafe { libc::sysconf(libc::_SC_NPROCESSORS_ONLN) };
     u32::try_from(n).unwrap_or(1).max(1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const INFRA: &str = "cba0c0d78b854cc0ce49c2bf7ae41477477625acbc2210a61c82e44eb12ff9fc";
+    const ID: &str = "3a8d7d9aff92e53cf48ee11c3e386f00c2240c9eee71cd0aa0bd50a878741e5e";
+
+    #[test]
+    fn finds_podman_ids() {
+        assert_eq!(podman_id(ID), Some(ID));
+        assert_eq!(podman_id(&format!("{INFRA}.{ID}")), Some(ID));
+        assert_eq!(podman_id("web"), None);
+        assert_eq!(podman_id("web.db"), None);
+        assert_eq!(podman_id(&ID.to_uppercase()), None);
+        assert_eq!(podman_id(&ID[1..]), None);
+    }
 }

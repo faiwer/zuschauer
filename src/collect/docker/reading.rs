@@ -36,8 +36,8 @@ pub(super) struct Snapshot {
 
 pub(super) struct Reading {
     pub id: String,
-    /// Known up front on macOS (from the list), on FreeBSD (the jail name)
-    /// and for Quadlet containers; looked up by ID otherwise.
+    /// Known up front on macOS (from the list), for FreeBSD jails other than
+    /// Podman's, and for Quadlet containers; looked up by ID otherwise.
     pub name: Option<String>,
     pub at: Instant,
     /// Cumulative CPU time, all cores.

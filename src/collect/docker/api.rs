@@ -69,6 +69,8 @@ pub fn find_socket(configured: Option<&Path>) -> Option<PathBuf> {
     let mut candidates = vec![
         PathBuf::from("/var/run/docker.sock"),
         PathBuf::from("/run/podman/podman.sock"),
+        // FreeBSD's `podman_service`.
+        PathBuf::from("/var/run/podman/podman.sock"),
     ];
     if let Some(runtime) = std::env::var_os("XDG_RUNTIME_DIR") {
         candidates.push(Path::new(&runtime).join("podman/podman.sock"));
