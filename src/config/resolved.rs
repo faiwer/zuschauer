@@ -61,8 +61,10 @@ pub struct Ntfy {
 }
 
 /// What a webhook's `body` can use, besides the filters.
-pub const WEBHOOK_VARIABLES: [&str; 6] =
-    ["context", "alert", "status", "severity", "title", "message"];
+pub const WEBHOOK_VARIABLES: [&str; 10] = [
+    "context", "alert", "label", "status", "severity", "title", "message", "detail", "since",
+    "ended",
+];
 
 #[derive(Debug)]
 pub struct Webhook {

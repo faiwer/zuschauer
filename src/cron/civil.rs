@@ -126,6 +126,26 @@ pub fn format_local(at: Timestamp) -> String {
     )
 }
 
+/// Like `2026-10-25T03:00:00Z`: RFC 3339, in UTC.
+pub fn format_utc(at: Timestamp) -> String {
+    let time = at.into();
+    // SAFETY: an all-zero `tm` is valid, and both pointers outlive the call.
+    let tm = unsafe {
+        let mut tm: libc::tm = std::mem::zeroed();
+        libc::gmtime_r(&time, &mut tm);
+        tm
+    };
+    format!(
+        "{}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        tm.tm_year + 1900,
+        tm.tm_mon + 1,
+        tm.tm_mday,
+        tm.tm_hour,
+        tm.tm_min,
+        tm.tm_sec
+    )
+}
+
 fn days_in_month(year: i32, month: u32) -> u32 {
     match month {
         2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
@@ -171,6 +191,12 @@ mod tests {
             civil(2026, 4, 30, 23, 0).next_hour(),
             civil(2026, 5, 1, 0, 0)
         );
+    }
+
+    #[test]
+    fn formats_utc() {
+        assert_eq!(format_utc(1_790_000_000), "2026-09-21T14:13:20Z");
+        assert_eq!(format_utc(0), "1970-01-01T00:00:00Z");
     }
 
     #[test]

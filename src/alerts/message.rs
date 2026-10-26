@@ -19,18 +19,32 @@ pub(super) fn fired(
     };
     Message {
         alert: alert.id.clone(),
+        label: alert.label.clone(),
         title: alert.label.clone(),
         body,
-        severity: Some(severity),
+        detail: detail.to_owned(),
+        severity,
+        since,
+        ended: None,
     }
 }
 
-pub(super) fn resolved(alert: &Alert, since: Timestamp, at: Timestamp) -> Message {
+pub(super) fn resolved(
+    alert: &Alert,
+    severity: Severity,
+    detail: String,
+    since: Timestamp,
+    at: Timestamp,
+) -> Message {
     Message {
         alert: alert.id.clone(),
+        label: alert.label.clone(),
         title: format!("{} resolved", alert.label),
         body: format!("after {}", span(at.saturating_sub(since))),
-        severity: None,
+        detail,
+        severity,
+        since,
+        ended: Some(at),
     }
 }
 

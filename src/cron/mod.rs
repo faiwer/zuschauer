@@ -4,11 +4,11 @@
 //! - `schedule`: `Schedule`, parsing and finding the next due time
 //! - `field`: one field of an expression, as a set of values
 //! - `civil`: calendar arithmetic on local date-times, and the conversion to
-//!   and from timestamps through libc
+//!   and from timestamps through libc, and RFC 3339 times in UTC
 
 mod civil;
 mod field;
 mod schedule;
 
-pub use civil::{Civil, format_local};
+pub use civil::{Civil, format_local, format_utc};
 pub use schedule::Schedule;

@@ -6,6 +6,7 @@ use ring::hmac;
 use serde_json::json;
 
 use crate::config::{WEBHOOK_VARIABLES, Webhook, render_template};
+use crate::cron::format_utc;
 use crate::http::{describe, request};
 
 use super::message::Message;
@@ -43,34 +44,44 @@ pub(super) async fn publish(
     judge(&response)
 }
 
+/// What Alertmanager sends as `endsAt` while an alert fires.
+const NOT_ENDED: &str = "0001-01-01T00:00:00Z";
+
 fn body(config: &Webhook, context: &str, message: &Message) -> Result<String, Failure> {
-    let status = if message.severity.is_some() {
-        "firing"
-    } else {
+    let status = if message.ended.is_some() {
         "resolved"
+    } else {
+        "firing"
     };
+    let severity = message.severity.to_string();
+    let since = format_utc(message.since);
+    let ended = message.ended.map(format_utc);
     let Some(template) = &config.body else {
         return Ok(json!({
             "context": context,
             "alert": message.alert,
+            "label": message.label,
             "status": status,
-            "severity": message.severity.map(|severity| severity.to_string()),
+            "severity": severity,
             "title": message.title,
             "message": message.body,
+            "detail": message.detail,
+            "since": since,
+            "ended": ended,
         })
         .to_string());
     };
-    let severity = message
-        .severity
-        .map(|severity| severity.to_string())
-        .unwrap_or_default();
     let values = [
         context,
         &message.alert,
+        &message.label,
         status,
         &severity,
         &message.title,
         &message.body,
+        &message.detail,
+        &since,
+        ended.as_deref().unwrap_or(NOT_ENDED),
     ];
     let vars: Vec<(&str, &str)> = WEBHOOK_VARIABLES.into_iter().zip(values).collect();
     render_template(template, &vars).map_err(Failure::Rejected)
@@ -91,6 +102,7 @@ fn sign(secret: &str, body: &[u8]) -> String {
 mod tests {
     use crate::config::Severity;
     use crate::http::Url;
+    use crate::model::Timestamp;
 
     use super::*;
 
@@ -104,12 +116,16 @@ mod tests {
         }
     }
 
-    fn message(severity: Option<Severity>) -> Message {
+    fn message(ended: Option<Timestamp>) -> Message {
         Message {
             alert: "blog-db".to_owned(),
+            label: "Blog \"db\"".to_owned(),
             title: "Blog \"db\"".to_owned(),
-            body: "not running".to_owned(),
-            severity,
+            body: "not running, for 1m".to_owned(),
+            detail: "not running".to_owned(),
+            severity: Severity::Warning,
+            since: 1_790_000_000,
+            ended,
         }
     }
 
@@ -124,7 +140,7 @@ mod tests {
 
     #[test]
     fn sends_the_default_json() {
-        let Ok(body) = body(&webhook(None), "Box", &message(Some(Severity::Warning))) else {
+        let Ok(body) = body(&webhook(None), "Box", &message(None)) else {
             panic!();
         };
         let json: serde_json::Value = serde_json::from_str(&body).unwrap();
@@ -133,26 +149,43 @@ mod tests {
             json!({
                 "context": "Box",
                 "alert": "blog-db",
+                "label": "Blog \"db\"",
                 "status": "firing",
                 "severity": "warning",
                 "title": "Blog \"db\"",
-                "message": "not running",
+                "message": "not running, for 1m",
+                "detail": "not running",
+                "since": "2026-09-21T14:13:20Z",
+                "ended": null,
             })
         );
-        let Ok(body) = super::body(&webhook(None), "Box", &message(None)) else {
+        let Ok(body) = super::body(&webhook(None), "Box", &message(Some(1_790_000_060))) else {
             panic!();
         };
-        assert!(body.contains(r#""severity":null"#) && body.contains(r#""status":"resolved""#));
+        let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(json["status"], "resolved");
+        assert_eq!(json["severity"], "warning");
+        assert_eq!(json["ended"], "2026-09-21T14:14:20Z");
     }
 
     #[test]
     fn fills_the_body_template() {
         let config = webhook(Some(
-            r#"{"text": "[%{context}] %{title|json}: %{severity}"}"#,
+            r#"{"text": "[%{context}] %{label|json}: %{detail}", "endsAt": "%{ended}"}"#,
         ));
-        let Ok(body) = body(&config, "Box", &message(Some(Severity::Critical))) else {
+        let Ok(firing) = body(&config, "Box", &message(None)) else {
             panic!();
         };
-        assert_eq!(body, r#"{"text": "[Box] Blog \"db\": critical"}"#);
+        assert_eq!(
+            firing,
+            r#"{"text": "[Box] Blog \"db\": not running", "endsAt": "0001-01-01T00:00:00Z"}"#
+        );
+        let Ok(resolved) = body(&config, "Box", &message(Some(1_790_000_060))) else {
+            panic!();
+        };
+        assert!(
+            resolved.ends_with(r#""endsAt": "2026-09-21T14:14:20Z"}"#),
+            "{resolved}"
+        );
     }
 }

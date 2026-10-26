@@ -28,9 +28,13 @@ pub fn observe(alert: &'static Alert, observation: Observation) {
                 eprintln!("alert {}: firing, {severity}, {detail}", alert.id);
                 message::fired(alert, severity, &detail, since, at)
             }
-            Change::Resolved { since } => {
+            Change::Resolved {
+                since,
+                detail,
+                severity,
+            } => {
                 eprintln!("alert {}: resolved", alert.id);
-                message::resolved(alert, since, at)
+                message::resolved(alert, severity, detail, since, at)
             }
         };
         notify::send(message);

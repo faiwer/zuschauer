@@ -21,11 +21,11 @@ pub(super) async fn publish(
     message: &Message,
 ) -> Result<(), Failure> {
     // Priority 2 shows the notification without a sound or vibration.
-    let (priority, tag) = match message.severity {
-        Some(Severity::Critical) => (5, "rotating_light"),
-        Some(Severity::Warning) => (4, "warning"),
-        Some(Severity::Info) => (3, "information_source"),
-        None => (2, "white_check_mark"),
+    let (priority, tag) = match (message.ended, message.severity) {
+        (Some(_), _) => (2, "white_check_mark"),
+        (None, Severity::Critical) => (5, "rotating_light"),
+        (None, Severity::Warning) => (4, "warning"),
+        (None, Severity::Info) => (3, "information_source"),
     };
     let body = json!({
         "topic": config.topic,

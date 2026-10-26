@@ -151,19 +151,28 @@ Without `body`, zuschauer sends:
 {
   "context": "my-server",
   "alert": "blog-db",
+  "label": "Blog container blog-db",
   "status": "firing",
   "severity": "critical",
   "title": "Blog container blog-db",
-  "message": "not running, for 1m"
+  "message": "not running, for 1m",
+  "detail": "not running",
+  "since": "2026-10-26T21:40:00Z",
+  "ended": null
 }
 ```
 
-- `alert` is the alert's [ID](alerts.md#ids-and-dependson), the same in the
-  firing and the resolved request.
+- `alert` is the alert's [ID](alerts.md#ids-and-dependson). It, `label`,
+  `severity`, `detail` and `since` are the same in the firing and the resolved
+  request, so a receiver can match the two.
 - `status` is `"firing"` or `"resolved"`.
-- `severity` is `"critical"`, `"warning"` or `"info"`, and `null` when
-  resolved.
-- `title` and `message` are what ntfy would show, without the context.
+- `severity` is `"critical"`, `"warning"` or `"info"`: what the alert fired
+  as, or, when resolved, the loudest it was announced as.
+- `title` and `message` are what ntfy would show, without the context. When
+  resolved, they read `Blog container blog-db resolved` and `after 14m`.
+- `detail` is the problem, without how long it lasted.
+- `since` is when the problem started and `ended` when it resolved, in
+  RFC 3339, UTC. `ended` is `null` while firing.
 
 ### A body of your own
 
@@ -175,10 +184,16 @@ and `%{name|url}`, percent-encoded:
 | --- | --- |
 | `%{context}` | the [context](configuration.md#top-level-settings) |
 | `%{alert}` | the alert's ID |
+| `%{label}` | the alert's label, like `Blog container blog-db` |
 | `%{status}` | `firing` or `resolved` |
-| `%{severity}` | `critical`, `warning` or `info`; empty when resolved |
+| `%{severity}` | `critical`, `warning` or `info` |
 | `%{title}` | the notification's title |
 | `%{message}` | the notification's text |
+| `%{detail}` | the problem, like `not running` |
+| `%{since}` | when the problem started, like `2026-10-26T21:40:00Z` |
+| `%{ended}` | when it resolved; `0001-01-01T00:00:00Z` while firing, as Alertmanager sends it |
+
+They mean the same as in the default JSON above.
 
 For example, a Slack or Mattermost incoming webhook:
 
@@ -194,6 +209,23 @@ For example, a Slack or Mattermost incoming webhook:
 
 Use `|json` for anything inside a JSON string: a title with a `"` in it would
 break the JSON otherwise.
+
+### Alertmanager's format
+
+Many tools take webhooks in the format of Prometheus'
+[Alertmanager](https://prometheus.io/docs/alerting/latest/configuration/#webhook_config).
+Zuschauer sends one alert per request, which receivers take as a group of
+one:
+
+```jsonc
+"notifiers": {
+  "alertmanager": {
+    "type": "webhook",
+    "url": "https://receiver.example.com/alerts",
+    "body": "{ \"version\": \"4\", \"receiver\": \"zuschauer\", \"status\": \"%{status}\", \"groupKey\": \"%{alert|json}\", \"alerts\": [{ \"status\": \"%{status}\", \"labels\": { \"alertname\": \"%{label|json}\", \"severity\": \"%{severity}\", \"instance\": \"%{context|json}\" }, \"annotations\": { \"summary\": \"%{detail|json}\" }, \"startsAt\": \"%{since}\", \"endsAt\": \"%{ended}\", \"fingerprint\": \"%{alert|json}\" }] }"
+  }
+}
+```
 
 ### Signatures
 

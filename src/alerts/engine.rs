@@ -36,6 +36,10 @@ pub(super) enum Change {
     },
     Resolved {
         since: Timestamp,
+        /// The latest problem's.
+        detail: String,
+        /// The loudest announced.
+        severity: Severity,
     },
 }
 
@@ -110,13 +114,16 @@ impl Engine {
             let Some(problem) = state.problem.take() else {
                 return Vec::new();
             };
-            let fired = state.announced.take().is_some();
-            let resolved = fired.then_some((
-                alert,
-                Change::Resolved {
-                    since: problem.since,
-                },
-            ));
+            let resolved = state.announced.take().map(|severity| {
+                (
+                    alert,
+                    Change::Resolved {
+                        since: problem.since,
+                        detail: problem.detail,
+                        severity,
+                    },
+                )
+            });
             return resolved
                 .into_iter()
                 .chain(self.release(alert, at))
@@ -285,10 +292,10 @@ mod tests {
         );
         assert_eq!(engine.observe_one(cpu, Observation::Value(99.0), 90), None);
         assert_eq!(engine.firing().count(), 1);
-        assert_eq!(
+        assert!(matches!(
             engine.observe_one(cpu, Observation::Value(50.0), 120),
-            Some(Change::Resolved { since: 0 })
-        );
+            Some(Change::Resolved { since: 0, .. })
+        ));
         assert_eq!(engine.observe_one(cpu, Observation::Value(50.0), 150), None);
         assert_eq!(engine.firing().count(), 0);
     }
@@ -333,10 +340,10 @@ mod tests {
         );
         assert_eq!(engine.observe_one(temp, Observation::Value(87.0), 20), None);
         assert_eq!(engine.observe_one(temp, Observation::Value(85.0), 30), None);
-        assert_eq!(
+        assert!(matches!(
             engine.observe_one(temp, Observation::Value(84.9), 40),
-            Some(Change::Resolved { since: 10 })
-        );
+            Some(Change::Resolved { since: 10, .. })
+        ));
     }
 
     #[test]
@@ -454,7 +461,11 @@ mod tests {
         assert_eq!(engine.observe_one(command, failure(), 40), None);
         assert_eq!(
             engine.observe_one(command, Observation::Fine, 50),
-            Some(Change::Resolved { since: 0 })
+            Some(Change::Resolved {
+                since: 0,
+                detail: "exit 2".to_owned(),
+                severity: Severity::Critical,
+            })
         );
     }
 
