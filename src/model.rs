@@ -71,6 +71,10 @@ pub enum Status {
     Up {
         since: Timestamp,
     },
+    /// Commands only: exited with one of their `warnOn` codes.
+    Warn {
+        since: Timestamp,
+    },
     Down {
         since: Timestamp,
     },

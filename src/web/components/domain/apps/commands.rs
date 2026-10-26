@@ -39,6 +39,7 @@ impl CommandRow {
         match self.status {
             None => Level::Unknown,
             Some(Status::Down { .. }) => Level::Problem,
+            Some(Status::Warn { .. }) => Level::Warning,
             Some(_) => Level::Ok,
         }
     }
@@ -61,7 +62,7 @@ pub fn render_command_item(row: &CommandRow) -> Markup {
                 ", running for " (ago(since))
             }
             @match (row.status, &row.message, &row.error) {
-                (Some(Status::Down { .. }), _, Some(error)) => {
+                (Some(Status::Down { .. } | Status::Warn { .. }), _, Some(error)) => {
                     span.command-output { (error) }
                 }
                 (Some(Status::Up { .. }), Some(message), _) if !message.is_empty() => {

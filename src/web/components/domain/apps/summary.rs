@@ -80,6 +80,9 @@ fn health(app: &AppView) -> Verdicts {
             Some(Status::Down { .. }) => {
                 health.add(Level::Problem, Some(format!("{} failed", command.name)))
             }
+            Some(Status::Warn { .. }) => {
+                health.add(Level::Warning, Some(format!("{} warning", command.name)))
+            }
             Some(_) => health.add(Level::Ok, None),
             None => {}
         }

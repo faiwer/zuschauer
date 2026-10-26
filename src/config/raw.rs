@@ -97,6 +97,8 @@ pub struct RawCommand {
     pub every: Option<Dur>,
     pub timeout: Option<Dur>,
     pub kill_on_timeout: Option<bool>,
+    /// Exit codes that mean a warning rather than a failure.
+    pub warn_on: Option<Vec<i64>>,
     pub output: Option<RawOutput>,
     pub alert: Option<RawAlert>,
 }

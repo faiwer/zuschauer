@@ -1,13 +1,14 @@
 //! An alert is OK, pending (its problem hasn't lasted `after` yet, unless
 //! it's urgent) or firing.
 //! Only the switches to firing and back to OK are reported, so a problem
-//! that clears while pending is never announced.
+//! that clears while pending is never announced. A firing alert is announced
+//! again when its problem gets louder, from a warning to critical.
 //! An alert stays pending while an ancestor has a problem, and fires as soon
 //! as the last such ancestor clears, without waiting for its next observation.
 
 use std::collections::BTreeMap;
 
-use crate::config::Alert;
+use crate::config::{Alert, Severity};
 use crate::model::Timestamp;
 
 /// What a collector saw.
@@ -21,18 +22,29 @@ pub enum Observation {
     /// A problem that's certain already, like too many restarts within an
     /// hour or a failed job, so it fires without waiting for `after`.
     Urgent(String),
+    /// A problem announced as a warning at most, like a command exiting with
+    /// one of its `warnOn` codes.
+    Warning(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Change {
-    Fired { since: Timestamp, detail: String },
-    Resolved { since: Timestamp },
+    Fired {
+        since: Timestamp,
+        detail: String,
+        severity: Severity,
+    },
+    Resolved {
+        since: Timestamp,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub(super) struct Problem {
     pub since: Timestamp,
     pub detail: String,
+    /// Of the latest observation.
+    pub severity: Severity,
     /// The latest observation was `Urgent`.
     urgent: bool,
 }
@@ -46,7 +58,8 @@ impl Problem {
 struct State {
     alert: &'static Alert,
     problem: Option<Problem>,
-    fired: bool,
+    /// While firing: the loudest severity announced.
+    announced: Option<Severity>,
 }
 
 pub(super) struct Engine {
@@ -73,10 +86,14 @@ impl Engine {
         let state = self.states.entry(&alert.id).or_insert(State {
             alert,
             problem: None,
-            fired: false,
+            announced: None,
         });
 
         let is_urgent = matches!(observation, Observation::Urgent(_));
+        let severity = match observation {
+            Observation::Warning(_) => alert.severity.at_most_warning(),
+            _ => alert.severity,
+        };
         let detail = match observation {
             Observation::Value(value) => alert
                 .threshold
@@ -84,14 +101,16 @@ impl Engine {
                 .filter(|t| t.exceeded(value, state.problem.is_some()))
                 .map(|t| format!("{value:.1}{unit}, above {}{unit}", t.above, unit = t.unit)),
             Observation::Fine => None,
-            Observation::Problem(detail) | Observation::Urgent(detail) => Some(detail),
+            Observation::Problem(detail)
+            | Observation::Urgent(detail)
+            | Observation::Warning(detail) => Some(detail),
         };
 
         let Some(detail) = detail else {
             let Some(problem) = state.problem.take() else {
                 return Vec::new();
             };
-            let fired = std::mem::take(&mut state.fired);
+            let fired = state.announced.take().is_some();
             let resolved = fired.then_some((
                 alert,
                 Change::Resolved {
@@ -106,19 +125,25 @@ impl Engine {
         let problem = state.problem.get_or_insert(Problem {
             since: at,
             detail: String::new(),
+            severity,
             urgent: false,
         });
         problem.detail = detail;
+        problem.severity = severity;
         problem.urgent = is_urgent;
-        if state.fired || blocked || !problem.due(alert, at) {
+        let louder = state
+            .announced
+            .is_none_or(|announced| severity.is_louder_than(announced));
+        if !louder || blocked || !problem.due(alert, at) {
             return Vec::new();
         }
-        state.fired = true;
+        state.announced = Some(severity);
         vec![(
             alert,
             Change::Fired {
                 since: problem.since,
                 detail: problem.detail.clone(),
+                severity,
             },
         )]
     }
@@ -139,7 +164,7 @@ impl Engine {
         let ready: Vec<&'static Alert> = self
             .states
             .values()
-            .filter(|s| !s.fired && s.alert.parents.contains(&parent.id))
+            .filter(|s| s.announced.is_none() && s.alert.parents.contains(&parent.id))
             .filter(|s| s.problem.as_ref().is_some_and(|p| p.due(s.alert, at)))
             .map(|s| s.alert)
             .filter(|alert| !self.is_blocked(alert))
@@ -157,9 +182,10 @@ impl Engine {
                 Change::Fired {
                     since: problem.since,
                     detail: problem.detail.clone(),
+                    severity: problem.severity,
                 },
             ));
-            state.fired = true;
+            state.announced = Some(problem.severity);
         }
         changes
     }
@@ -167,7 +193,7 @@ impl Engine {
     pub fn firing(&self) -> impl Iterator<Item = (&'static Alert, &Problem)> {
         self.states
             .values()
-            .filter(|s| s.fired)
+            .filter(|s| s.announced.is_some())
             .filter_map(|s| Some((s.alert, s.problem.as_ref()?)))
     }
 }
@@ -177,7 +203,7 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
-    use crate::config::{Severity, Threshold};
+    use crate::config::Threshold;
 
     fn alert(
         id: &str,
@@ -185,10 +211,20 @@ mod tests {
         threshold: Option<Threshold>,
         parents: &[&str],
     ) -> &'static Alert {
+        alert_with(id, after, threshold, parents, Severity::Warning)
+    }
+
+    fn alert_with(
+        id: &str,
+        after: u64,
+        threshold: Option<Threshold>,
+        parents: &[&str],
+        severity: Severity,
+    ) -> &'static Alert {
         Box::leak(Box::new(Alert {
             id: id.to_owned(),
             label: id.to_owned(),
-            severity: Severity::Warning,
+            severity,
             after: Duration::from_secs(after),
             parents: parents.iter().map(|p| (*p).to_owned()).collect(),
             threshold,
@@ -205,9 +241,14 @@ mod tests {
     }
 
     fn fired(since: Timestamp, detail: &str) -> Option<Change> {
+        fired_as(since, detail, Severity::Warning)
+    }
+
+    fn fired_as(since: Timestamp, detail: &str, severity: Severity) -> Option<Change> {
         Some(Change::Fired {
             since,
             detail: detail.to_owned(),
+            severity,
         })
     }
 
@@ -390,6 +431,40 @@ mod tests {
         assert_eq!(
             ids(&engine.observe(host, Observation::Fine, 10)),
             ["host", "api"]
+        );
+    }
+
+    #[test]
+    fn a_warning_fires_as_a_warning_and_again_when_it_gets_worse() {
+        let command = alert_with("command", 0, None, &[], Severity::Critical);
+        let mut engine = Engine::new();
+        let warning = || Observation::Warning("exit 1".to_owned());
+        let failure = || Observation::Problem("exit 2".to_owned());
+        assert_eq!(
+            engine.observe_one(command, warning(), 0),
+            fired_as(0, "exit 1", Severity::Warning)
+        );
+        assert_eq!(engine.observe_one(command, warning(), 10), None);
+        assert_eq!(
+            engine.observe_one(command, failure(), 20),
+            fired_as(0, "exit 2", Severity::Critical)
+        );
+        // Back to a warning and worse again: already announced as critical.
+        assert_eq!(engine.observe_one(command, warning(), 30), None);
+        assert_eq!(engine.observe_one(command, failure(), 40), None);
+        assert_eq!(
+            engine.observe_one(command, Observation::Fine, 50),
+            Some(Change::Resolved { since: 0 })
+        );
+    }
+
+    #[test]
+    fn a_warning_is_never_louder_than_the_alert() {
+        let command = alert_with("command", 0, None, &[], Severity::Info);
+        let mut engine = Engine::new();
+        assert_eq!(
+            engine.observe_one(command, Observation::Warning("exit 1".to_owned()), 0),
+            fired_as(0, "exit 1", Severity::Info)
         );
     }
 }

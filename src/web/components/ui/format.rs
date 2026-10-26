@@ -9,6 +9,7 @@ pub fn status_for(status: Option<Status>) -> String {
         Some(Status::Paused) => "paused".to_owned(),
         Some(Status::Gone { since }) => format!("gone for {}", ago(since)),
         Some(Status::Up { since }) => format!("up for {}", ago(since)),
+        Some(Status::Warn { since }) => format!("warning for {}", ago(since)),
         Some(Status::Down { since }) => format!("down for {}", ago(since)),
     }
 }

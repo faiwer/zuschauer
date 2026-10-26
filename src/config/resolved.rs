@@ -94,6 +94,8 @@ pub struct AppCommand {
     pub timeout: Duration,
     /// Otherwise a run past `timeout` is a problem but keeps going.
     pub kill_on_timeout: bool,
+    /// Exit codes that mean a warning rather than a failure. Never 0.
+    pub warn_on: Vec<i32>,
     pub output: OutputSlice,
     pub alert: Option<Alert>,
 }
@@ -447,7 +449,7 @@ impl fmt::Display for AppCommand {
         };
         write!(
             f,
-            "runs {:?} every {}, timeout {}{}, keeps the {from} {} line(s) of output",
+            "runs {:?} every {}, timeout {}{}, ",
             self.run,
             Dur::from(self.every),
             Dur::from(self.timeout),
@@ -456,7 +458,14 @@ impl fmt::Display for AppCommand {
             } else {
                 ", then left running"
             },
-            self.output.lines,
+        )?;
+        if !self.warn_on.is_empty() {
+            write!(f, "warns on exit {:?}, ", self.warn_on)?;
+        }
+        write!(
+            f,
+            "keeps the {from} {} line(s) of output",
+            self.output.lines
         )
     }
 }

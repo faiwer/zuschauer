@@ -116,6 +116,29 @@ pub enum Severity {
     Info,
 }
 
+impl Severity {
+    pub fn is_louder_than(self, other: Self) -> bool {
+        self.loudness() > other.loudness()
+    }
+
+    /// `self`, but no louder than `Warning`.
+    pub fn at_most_warning(self) -> Self {
+        if self.is_louder_than(Self::Warning) {
+            Self::Warning
+        } else {
+            self
+        }
+    }
+
+    fn loudness(self) -> u8 {
+        match self {
+            Self::Critical => 2,
+            Self::Warning => 1,
+            Self::Info => 0,
+        }
+    }
+}
+
 impl fmt::Display for Severity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {

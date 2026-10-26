@@ -1,10 +1,16 @@
 use std::time::Duration;
 
-use crate::config::{Alert, Dur};
+use crate::config::{Alert, Dur, Severity};
 use crate::model::Timestamp;
 use crate::notify::Message;
 
-pub(super) fn fired(alert: &Alert, detail: &str, since: Timestamp, at: Timestamp) -> Message {
+pub(super) fn fired(
+    alert: &Alert,
+    severity: Severity,
+    detail: &str,
+    since: Timestamp,
+    at: Timestamp,
+) -> Message {
     let lasted = at.saturating_sub(since);
     let body = if lasted == 0 {
         detail.to_owned()
@@ -14,7 +20,7 @@ pub(super) fn fired(alert: &Alert, detail: &str, since: Timestamp, at: Timestamp
     Message {
         title: alert.label.clone(),
         body,
-        severity: Some(alert.severity),
+        severity: Some(severity),
     }
 }
 

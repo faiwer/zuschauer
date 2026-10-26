@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::alerts::{Observation, observe};
@@ -7,8 +5,19 @@ use crate::config::{App, AppCommand, Dur};
 use crate::model::{EntityId, MetricKind, Sample, now};
 use crate::store::store;
 
-use super::super::outcome::record;
+use super::super::outcome::{Verdict, record, record_verdict};
 use super::process::{End, Finished, execute};
+
+/// What a finished run means, with the text to show for it.
+#[derive(Debug, PartialEq, Eq)]
+enum Outcome {
+    /// The output.
+    Fine(String),
+    /// Exited with a `warnOn` code: why, with the output after it.
+    Warning(String),
+    /// Why it failed, with the output after it.
+    Failed(String),
+}
 
 /// Runs never overlap: a run still going when the next one is due makes it
 /// skip to the following tick.
@@ -35,7 +44,7 @@ pub async fn run(app: &'static App, command: &'static AppCommand) {
         })
         .await;
 
-        let outcome = outcome(&finished, command.timeout);
+        let outcome = outcome(&finished, command);
         {
             let mut store = store();
             store.set_running_since(entity.clone(), None);
@@ -43,40 +52,66 @@ pub async fn run(app: &'static App, command: &'static AppCommand) {
                 let took = Sample::now(finished.took.as_secs_f32());
                 store.push(entity.clone(), MetricKind::Runtime, took);
             }
-            store.set_message(entity.clone(), outcome.clone().ok());
+            let message = match &outcome {
+                Outcome::Fine(output) => Some(output.clone()),
+                Outcome::Warning(_) | Outcome::Failed(_) => None,
+            };
+            store.set_message(entity.clone(), message);
         }
-        if let Err(error) = &outcome {
-            eprintln!("command {label}: {error}");
-        }
-        let observation = match &outcome {
-            Ok(_) => Observation::Fine,
-            Err(error) => Observation::Problem(error.clone()),
+        let (verdict, error, observation) = match outcome {
+            Outcome::Fine(_) => (Verdict::Up, None, Observation::Fine),
+            Outcome::Warning(error) => {
+                eprintln!("command {label}: warning, {error}");
+                (
+                    Verdict::Warn,
+                    Some(error.clone()),
+                    Observation::Warning(error),
+                )
+            }
+            Outcome::Failed(error) => {
+                eprintln!("command {label}: {error}");
+                (
+                    Verdict::Down,
+                    Some(error.clone()),
+                    Observation::Problem(error),
+                )
+            }
         };
-        status = Some(record(&entity, status, outcome.map(drop)));
+        status = Some(record_verdict(&entity, status, verdict, error));
         if let Some(alert) = &command.alert {
             observe(alert, observation);
         }
     }
 }
 
-/// The output on success, or why it failed with the output after it.
-fn outcome(finished: &Finished, timeout: Duration) -> Result<String, String> {
-    let reason = match &finished.end {
-        End::Code(0) => return Ok(finished.output.clone()),
-        End::Code(code) => format!("exit {code}"),
-        End::Signal(signal) => format!("killed by signal {signal}"),
-        End::Killed => format!("no answer within {}, killed", Dur::from(timeout)),
-        End::Failed(error) => return Err(error.clone()),
+fn outcome(finished: &Finished, command: &AppCommand) -> Outcome {
+    let (reason, warning) = match &finished.end {
+        End::Code(0) => return Outcome::Fine(finished.output.clone()),
+        End::Code(code) => (format!("exit {code}"), command.warn_on.contains(code)),
+        End::Signal(signal) => (format!("killed by signal {signal}"), false),
+        End::Killed => (
+            format!("no answer within {}, killed", Dur::from(command.timeout)),
+            false,
+        ),
+        End::Failed(error) => return Outcome::Failed(error.clone()),
     };
-    match finished.output.as_str() {
-        "" => Err(reason),
-        output => Err(format!("{reason}: {output}")),
+    let text = match finished.output.as_str() {
+        "" => reason,
+        output => format!("{reason}: {output}"),
+    };
+    if warning {
+        Outcome::Warning(text)
+    } else {
+        Outcome::Failed(text)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
+    use crate::config::{OutputFrom, OutputSlice};
 
     fn finished(end: End, output: &str) -> Finished {
         Finished {
@@ -88,25 +123,43 @@ mod tests {
 
     #[test]
     fn describes_outcomes() {
-        let timeout = Duration::from_secs(30);
-        let outcome = |end, output| outcome(&finished(end, output), timeout);
-        assert_eq!(outcome(End::Code(0), "SMART OK"), Ok("SMART OK".to_owned()));
+        let command = AppCommand {
+            name: "check".to_owned(),
+            run: vec!["check".to_owned()],
+            every: Duration::from_secs(60),
+            timeout: Duration::from_secs(30),
+            kill_on_timeout: true,
+            warn_on: vec![1],
+            output: OutputSlice {
+                from: OutputFrom::Tail,
+                lines: 1,
+                max_line_length: 512,
+            },
+            alert: None,
+        };
+        let outcome = |end, output| outcome(&finished(end, output), &command);
+        let failed = |text: &str| Outcome::Failed(text.to_owned());
+        assert_eq!(
+            outcome(End::Code(0), "SMART OK"),
+            Outcome::Fine("SMART OK".to_owned())
+        );
+        assert_eq!(
+            outcome(End::Code(1), "DISK WARNING"),
+            Outcome::Warning("exit 1: DISK WARNING".to_owned())
+        );
         assert_eq!(
             outcome(End::Code(2), "DISK CRITICAL"),
-            Err("exit 2: DISK CRITICAL".to_owned())
+            failed("exit 2: DISK CRITICAL")
         );
-        assert_eq!(outcome(End::Code(1), ""), Err("exit 1".to_owned()));
-        assert_eq!(
-            outcome(End::Signal(9), ""),
-            Err("killed by signal 9".to_owned())
-        );
+        assert_eq!(outcome(End::Code(3), ""), failed("exit 3"));
+        assert_eq!(outcome(End::Signal(9), ""), failed("killed by signal 9"));
         assert_eq!(
             outcome(End::Killed, "scanning"),
-            Err("no answer within 30s, killed: scanning".to_owned())
+            failed("no answer within 30s, killed: scanning")
         );
         assert_eq!(
             outcome(End::Failed("x: not found".to_owned()), "ignored"),
-            Err("x: not found".to_owned())
+            failed("x: not found")
         );
     }
 }

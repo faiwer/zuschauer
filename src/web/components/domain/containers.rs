@@ -103,7 +103,7 @@ impl ContainerRow {
             None => Level::Unknown,
             Some(Status::Running | Status::Up { .. }) => Level::Ok,
             Some(Status::Paused) => Level::Warning,
-            Some(Status::Gone { .. } | Status::Down { .. }) => Level::Problem,
+            Some(Status::Gone { .. } | Status::Warn { .. } | Status::Down { .. }) => Level::Problem,
         }
     }
 }
@@ -113,7 +113,9 @@ fn status_title(status: Option<Status>) -> String {
         None => "Not seen since start".to_owned(),
         Some(Status::Running | Status::Up { .. }) => "Running".to_owned(),
         Some(Status::Paused) => "Paused".to_owned(),
-        Some(Status::Gone { since } | Status::Down { since }) => format!("Gone for {}", ago(since)),
+        Some(Status::Gone { since } | Status::Warn { since } | Status::Down { since }) => {
+            format!("Gone for {}", ago(since))
+        }
     }
 }
 
@@ -176,7 +178,7 @@ fn container_state(row: &ContainerRow) -> String {
     match row.status {
         None => "not seen since start".to_owned(),
         Some(Status::Paused) => "paused".to_owned(),
-        Some(Status::Gone { since } | Status::Down { since }) => {
+        Some(Status::Gone { since } | Status::Warn { since } | Status::Down { since }) => {
             format!("gone at {}", date_time(since))
         }
         Some(Status::Running | Status::Up { .. }) => {

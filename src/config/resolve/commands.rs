@@ -60,9 +60,25 @@ fn app_command(
         every,
         timeout,
         kill_on_timeout: raw.kill_on_timeout.unwrap_or(true),
+        warn_on: warn_on(at, raw.warn_on.unwrap_or_default(), errors),
         output: output(at, raw.output.unwrap_or_default(), errors),
         alert: raw.alert.map(|alert| state_alert(at, alert, names, errors)),
     }
+}
+
+/// Exit codes are 0 to 255, and 0 is success.
+fn warn_on(at: &str, raw: Vec<i64>, errors: &mut Vec<String>) -> Vec<i32> {
+    raw.into_iter()
+        .filter_map(|code| match i32::try_from(code) {
+            Ok(code @ 1..=255) => Some(code),
+            _ => {
+                errors.push(format!(
+                    "{at}.warnOn: {code} isn't a failing exit code, expected 1 to 255"
+                ));
+                None
+            }
+        })
+        .collect()
 }
 
 fn output(at: &str, raw: RawOutput, errors: &mut Vec<String>) -> OutputSlice {
@@ -106,6 +122,7 @@ mod tests {
                         "every": "1h",
                         "timeout": "2h",
                         "killOnTimeout": false,
+                        "warnOn": [1, 24],
                         "output": { "position": "head", "lines": 3, "maxLineLength": 80 }
                     }
                 } } }
@@ -121,6 +138,8 @@ mod tests {
             (DEFAULT_EVERY, DEFAULT_TIMEOUT)
         );
         assert!(smart.kill_on_timeout);
+        assert!(smart.warn_on.is_empty());
+        assert_eq!(backup.warn_on, [1, 24]);
         assert_eq!(smart.output.from, OutputFrom::Tail);
         assert_eq!((smart.output.lines, smart.output.max_line_length), (1, 512));
         let alert = smart.alert.as_ref().unwrap();
@@ -146,12 +165,14 @@ mod tests {
                     "": { "run": ["true"] },
                     "none": { "run": [] },
                     "blank": { "run": [""] },
-                    "bad": { "run": ["x"], "timeout": "0s", "output": { "lines": 0, "maxLineLength": 0 } }
+                    "bad": { "run": ["x"], "timeout": "0s", "output": { "lines": 0, "maxLineLength": 0 } },
+                    "codes": { "run": ["x"], "warnOn": [0, 1, 256] }
                 } } }
             }"#,
         ))
         .unwrap_err();
-        // Empty name, two bad `run`s, zero timeout, lines, maxLineLength.
-        assert_eq!(errors.len(), 6, "{errors:#?}");
+        // Empty name, two bad `run`s, zero timeout, lines, maxLineLength,
+        // warnOn 0 and 256.
+        assert_eq!(errors.len(), 8, "{errors:#?}");
     }
 }

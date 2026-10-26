@@ -1,6 +1,14 @@
 use crate::model::{EntityId, Status, Timestamp, now};
 use crate::store::store;
 
+/// What one attempt came to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Verdict {
+    Up,
+    Warn,
+    Down,
+}
+
 /// Stores one attempt's status and, on failure, the reason. Returns the new
 /// status, to be passed back as `prev` next time. What a success measured is
 /// the caller's to store.
@@ -9,20 +17,37 @@ pub(super) fn record(
     prev: Option<Status>,
     outcome: Result<(), String>,
 ) -> Status {
-    let status = streak(prev, outcome.is_ok(), now());
+    let verdict = match outcome {
+        Ok(()) => Verdict::Up,
+        Err(_) => Verdict::Down,
+    };
+    record_verdict(entity, prev, verdict, outcome.err())
+}
+
+/// Like `record`, for an attempt that can also end in a warning. `error`:
+/// the reason, unless it's `Up`.
+pub(super) fn record_verdict(
+    entity: &EntityId,
+    prev: Option<Status>,
+    verdict: Verdict,
+    error: Option<String>,
+) -> Status {
+    let status = streak(prev, verdict, now());
     let mut store = store();
     store.set_status(entity.clone(), status);
-    store.set_error(entity.clone(), outcome.err());
+    store.set_error(entity.clone(), error);
     status
 }
 
-/// Keeps `since` while the outcome stays the same.
-fn streak(prev: Option<Status>, up: bool, at: Timestamp) -> Status {
-    match (prev, up) {
-        (Some(Status::Up { since }), true) => Status::Up { since },
-        (Some(Status::Down { since }), false) => Status::Down { since },
-        (_, true) => Status::Up { since: at },
-        (_, false) => Status::Down { since: at },
+/// Keeps `since` while the verdict stays the same.
+fn streak(prev: Option<Status>, verdict: Verdict, at: Timestamp) -> Status {
+    match (prev, verdict) {
+        (Some(Status::Up { since }), Verdict::Up) => Status::Up { since },
+        (Some(Status::Warn { since }), Verdict::Warn) => Status::Warn { since },
+        (Some(Status::Down { since }), Verdict::Down) => Status::Down { since },
+        (_, Verdict::Up) => Status::Up { since: at },
+        (_, Verdict::Warn) => Status::Warn { since: at },
+        (_, Verdict::Down) => Status::Down { since: at },
     }
 }
 
@@ -32,12 +57,24 @@ mod tests {
 
     #[test]
     fn keeps_since_within_a_streak() {
-        let up = streak(None, true, 10);
+        let up = streak(None, Verdict::Up, 10);
         assert_eq!(up, Status::Up { since: 10 });
-        assert_eq!(streak(Some(up), true, 20), Status::Up { since: 10 });
-        let down = streak(Some(up), false, 30);
+        assert_eq!(streak(Some(up), Verdict::Up, 20), Status::Up { since: 10 });
+        let down = streak(Some(up), Verdict::Down, 30);
         assert_eq!(down, Status::Down { since: 30 });
-        assert_eq!(streak(Some(down), false, 40), Status::Down { since: 30 });
-        assert_eq!(streak(Some(down), true, 50), Status::Up { since: 50 });
+        assert_eq!(
+            streak(Some(down), Verdict::Down, 40),
+            Status::Down { since: 30 }
+        );
+        let warn = streak(Some(down), Verdict::Warn, 50);
+        assert_eq!(warn, Status::Warn { since: 50 });
+        assert_eq!(
+            streak(Some(warn), Verdict::Warn, 60),
+            Status::Warn { since: 50 }
+        );
+        assert_eq!(
+            streak(Some(warn), Verdict::Up, 70),
+            Status::Up { since: 70 }
+        );
     }
 }

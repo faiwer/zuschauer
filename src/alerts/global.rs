@@ -1,6 +1,6 @@
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use crate::config::Alert;
+use crate::config::{Alert, Severity};
 use crate::model::{Timestamp, now};
 use crate::notify;
 
@@ -20,9 +20,13 @@ pub fn observe(alert: &'static Alert, observation: Observation) {
     let changes = engine().observe(alert, observation, at);
     for (alert, change) in changes {
         let message = match change {
-            Change::Fired { since, detail } => {
-                eprintln!("alert {}: firing, {detail}", alert.id);
-                message::fired(alert, &detail, since, at)
+            Change::Fired {
+                since,
+                detail,
+                severity,
+            } => {
+                eprintln!("alert {}: firing, {severity}, {detail}", alert.id);
+                message::fired(alert, severity, &detail, since, at)
             }
             Change::Resolved { since } => {
                 eprintln!("alert {}: resolved", alert.id);
@@ -38,6 +42,8 @@ pub struct Firing {
     /// When the problem started, not when the alert fired.
     pub since: Timestamp,
     pub detail: String,
+    /// Can be milder than the alert's, for a warning.
+    pub severity: Severity,
 }
 
 /// Sorted by alert ID.
@@ -48,6 +54,7 @@ pub fn firing() -> Vec<Firing> {
             alert,
             since: problem.since,
             detail: problem.detail.clone(),
+            severity: problem.severity,
         })
         .collect()
 }

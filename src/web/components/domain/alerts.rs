@@ -35,8 +35,8 @@ fn render_alert_row(alert: &Firing) -> Markup {
     html! {
         tr.table-row {
             td.alert-icon {
-                (tinted_icon(Icon::Alert, severity_tint(alert.alert.severity), Some(&severity_hint)))
-                (render_hint(&severity_hint, html! { (alert.alert.severity) }))
+                (tinted_icon(Icon::Alert, severity_tint(alert.severity), Some(&severity_hint)))
+                (render_hint(&severity_hint, html! { (alert.severity) }))
             }
             td {
                 div.highlight { (alert.alert.label) }

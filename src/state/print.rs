@@ -178,6 +178,10 @@ fn app_rows(app: &App, parts: Parts, store: &Store) -> Vec<Vec<String>> {
                     Some("") | None => "ok".to_owned(),
                     Some(message) => format!("ok, {message}"),
                 },
+                Some(Status::Warn { .. }) => match entity.and_then(Entity::error) {
+                    Some(error) => format!("warning, {error}"),
+                    None => "warning".to_owned(),
+                },
                 Some(_) => entity
                     .and_then(Entity::error)
                     .unwrap_or("failed")
