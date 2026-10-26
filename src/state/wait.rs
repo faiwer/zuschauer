@@ -34,10 +34,19 @@ fn limit(config: &Config, parts: Parts) -> Duration {
         .flat_map(|app| &app.health_checks)
         .map(|check| check.timeout);
     let certificates = apps
+        .clone()
         .filter(|_| parts.certificates)
         .flat_map(|app| &app.certificates)
         .map(|_| CERTIFICATE_TIMEOUT);
-    let slowest = checks.chain(certificates).max().unwrap_or_default();
+    let commands = apps
+        .filter(|_| parts.commands)
+        .flat_map(|app| &app.commands)
+        .map(|command| command.timeout);
+    let slowest = checks
+        .chain(certificates)
+        .chain(commands)
+        .max()
+        .unwrap_or_default();
     SHORTEST_LIMIT.max(slowest + MARGIN)
 }
 
@@ -91,7 +100,14 @@ fn ready(config: &Config, parts: Parts, elapsed: Duration) -> bool {
                     service: service.name.clone(),
                 })
             });
-        checks && certificates && services
+        let commands = !parts.commands
+            || app.commands.iter().all(|command| {
+                answered(EntityId::Command {
+                    app: app.id.clone(),
+                    command: command.name.clone(),
+                })
+            });
+        checks && certificates && services && commands
     });
     host && containers && apps
 }

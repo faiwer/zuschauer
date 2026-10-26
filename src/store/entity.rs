@@ -13,6 +13,10 @@ pub struct Entity {
     error: Option<String>,
     /// Certificates: when the last one seen expires.
     expires_at: Option<Timestamp>,
+    /// Commands: when the run in progress started.
+    running_since: Option<Timestamp>,
+    /// Commands: what the last successful run printed.
+    message: Option<String>,
 }
 
 impl Entity {
@@ -32,6 +36,14 @@ impl Entity {
         self.expires_at
     }
 
+    pub fn running_since(&self) -> Option<Timestamp> {
+        self.running_since
+    }
+
+    pub fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+
     pub(super) fn push(&mut self, metric: MetricKind, sample: Sample) {
         self.series.entry(metric).or_default().push(sample);
     }
@@ -46,5 +58,13 @@ impl Entity {
 
     pub(super) fn set_expires_at(&mut self, at: Timestamp) {
         self.expires_at = Some(at);
+    }
+
+    pub(super) fn set_running_since(&mut self, at: Option<Timestamp>) {
+        self.running_since = at;
+    }
+
+    pub(super) fn set_message(&mut self, message: Option<String>) {
+        self.message = message;
     }
 }

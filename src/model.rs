@@ -28,6 +28,11 @@ pub enum EntityId {
         app: String,
         service: String,
     },
+    /// An app's command, by app ID and name.
+    Command {
+        app: String,
+        command: String,
+    },
 }
 
 /// Which metric of an entity a series holds.
@@ -47,6 +52,8 @@ pub enum MetricKind {
     Latency,
     /// Restarts within the service's restart window.
     Restarts,
+    /// Seconds a command's run took.
+    Runtime,
 }
 
 /// State of an entity that can come and go, or fail.
@@ -59,8 +66,8 @@ pub enum Status {
     Gone {
         since: Timestamp,
     },
-    /// Health checks and services. `since` is the first attempt of the
-    /// current streak.
+    /// Health checks, services and commands. `since` is the first attempt
+    /// of the current streak.
     Up {
         since: Timestamp,
     },

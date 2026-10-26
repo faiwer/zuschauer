@@ -1,6 +1,6 @@
 use crate::collect::Parts;
 
-pub const NAMES: &str = "host, containers, checks, certificates, services";
+pub const NAMES: &str = "host, containers, checks, certificates, services, commands";
 
 /// A comma-separated list of `NAMES`.
 pub fn parse_parts(list: &str) -> Result<Parts, String> {
@@ -12,6 +12,7 @@ pub fn parse_parts(list: &str) -> Result<Parts, String> {
             "checks" => &mut parts.checks,
             "certificates" => &mut parts.certificates,
             "services" => &mut parts.services,
+            "commands" => &mut parts.commands,
             _ => {
                 return Err(format!(
                     "--only: unknown part \"{name}\", expected some of {NAMES}"
@@ -39,7 +40,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_parts("host,containers,checks,certificates,services"),
+            parse_parts("host,containers,checks,certificates,services,commands"),
             Ok(Parts::ALL)
         );
         assert!(parse_parts("host,jobs").is_err());

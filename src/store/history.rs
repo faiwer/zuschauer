@@ -35,6 +35,20 @@ impl Store {
         self.entities.entry(entity).or_default().set_expires_at(at);
     }
 
+    pub fn set_running_since(&mut self, entity: EntityId, at: Option<Timestamp>) {
+        self.entities
+            .entry(entity)
+            .or_default()
+            .set_running_since(at);
+    }
+
+    pub fn set_message(&mut self, entity: EntityId, message: Option<String>) {
+        self.entities
+            .entry(entity)
+            .or_default()
+            .set_message(message);
+    }
+
     pub fn entity(&self, entity: &EntityId) -> Option<&Entity> {
         self.entities.get(entity)
     }

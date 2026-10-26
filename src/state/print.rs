@@ -167,6 +167,26 @@ fn app_rows(app: &App, parts: Parts, store: &Store) -> Vec<Vec<String>> {
             rows.push(vec!["service".to_owned(), service.name.clone(), state]);
         }
     }
+    if parts.commands {
+        for command in &app.commands {
+            let entity = store.entity(&EntityId::Command {
+                app: app.id.clone(),
+                command: command.name.clone(),
+            });
+            let state = match entity.and_then(Entity::status) {
+                Some(Status::Up { .. }) => match entity.and_then(Entity::message) {
+                    Some("") | None => "ok".to_owned(),
+                    Some(message) => format!("ok, {message}"),
+                },
+                Some(_) => entity
+                    .and_then(Entity::error)
+                    .unwrap_or("failed")
+                    .to_owned(),
+                None => NO_RESULT.to_owned(),
+            };
+            rows.push(vec!["command".to_owned(), command.name.clone(), state]);
+        }
+    }
     rows
 }
 

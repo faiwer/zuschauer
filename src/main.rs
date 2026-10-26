@@ -22,7 +22,7 @@ const USAGE: &str = "usage: zuschauer [--check] [CONFIG]\n       \
     --check           validate the config, print it with defaults applied, and exit\n  \
     --state           read everything the config watches once, print it, and exit\n  \
     --only PARTS      with --state, only these, comma-separated: host, containers,\n                    \
-    checks, certificates, services\n  \
+    checks, certificates, services, commands\n  \
     --every DURATION  with --state, read and print again every DURATION, like 5s,\n                    \
     until Ctrl-C\n  \
     --sensors         list temperature sensors with their current readings, and exit";
