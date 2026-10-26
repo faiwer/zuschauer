@@ -9,6 +9,7 @@ pub enum Icon {
     App,
     Cert,
     Checkmark,
+    Command,
     Container,
     Heartbeat,
     Host,
@@ -19,11 +20,12 @@ pub enum Icon {
 }
 
 impl Icon {
-    const ALL: [Self; 11] = [
+    const ALL: [Self; 12] = [
         Self::Alert,
         Self::App,
         Self::Cert,
         Self::Checkmark,
+        Self::Command,
         Self::Container,
         Self::Heartbeat,
         Self::Host,
@@ -39,6 +41,7 @@ impl Icon {
             Self::App => "app",
             Self::Cert => "cert",
             Self::Checkmark => "checkmark",
+            Self::Command => "command",
             Self::Container => "container",
             Self::Heartbeat => "heartbeat",
             Self::Host => "host",
@@ -55,6 +58,7 @@ impl Icon {
             Self::App => include_str!("../../icons/app.svg"),
             Self::Cert => include_str!("../../icons/cert.svg"),
             Self::Checkmark => include_str!("../../icons/checkmark.svg"),
+            Self::Command => include_str!("../../icons/command.svg"),
             Self::Container => include_str!("../../icons/container.svg"),
             Self::Heartbeat => include_str!("../../icons/heartbeat.svg"),
             Self::Host => include_str!("../../icons/host.svg"),
