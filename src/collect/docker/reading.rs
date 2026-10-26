@@ -2,8 +2,11 @@
 
 use std::time::Instant;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
-compile_error!("container collector supports only Linux and macOS");
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "freebsd")))]
+compile_error!("container collector supports only Linux, macOS and FreeBSD");
+
+#[cfg(target_os = "freebsd")]
+pub(super) use super::freebsd::read;
 
 #[cfg(target_os = "macos")]
 pub(super) use super::macos::read;
@@ -17,8 +20,9 @@ pub(super) async fn read(_api: Option<&super::api::Api>) -> std::io::Result<Snap
 #[cfg(target_os = "linux")]
 pub(super) use super::conmon::names as local_names;
 
-/// Container ID → name, found without the API. macOS readings come named.
-#[cfg(target_os = "macos")]
+/// Container ID → name, found without the API. macOS and FreeBSD readings
+/// come named.
+#[cfg(any(target_os = "macos", target_os = "freebsd"))]
 pub(super) fn local_names() -> std::collections::HashMap<String, String> {
     std::collections::HashMap::new()
 }
@@ -32,8 +36,8 @@ pub(super) struct Snapshot {
 
 pub(super) struct Reading {
     pub id: String,
-    /// Known up front on macOS (from the list) and for Quadlet containers;
-    /// looked up by ID otherwise.
+    /// Known up front on macOS (from the list), on FreeBSD (the jail name)
+    /// and for Quadlet containers; looked up by ID otherwise.
     pub name: Option<String>,
     pub at: Instant,
     /// Cumulative CPU time, all cores.

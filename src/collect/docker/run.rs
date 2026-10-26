@@ -16,6 +16,7 @@ pub async fn run(config: &'static DockerConfig, apps: &'static [App]) {
     let api = find_socket(config.socket.as_deref()).map(Api::new);
     match &api {
         Some(api) => eprintln!("docker: API at {}", api.socket().display()),
+        None if cfg!(target_os = "freebsd") => eprintln!("docker: containers are jails"),
         None => eprintln!("docker: no API socket found, containers are shown by ID"),
     }
     let mut tracker = Tracker::default();

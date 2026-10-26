@@ -1,9 +1,11 @@
-//! Containers (Docker or Podman): running/paused/gone, CPU and memory.
+//! Containers (Docker or Podman, jails on FreeBSD): running/paused/gone, CPU
+//! and memory.
 //!
 //! - `run`: the collector task
 //! - `tracker`: names, "gone" detection, writing to the store
 //! - `reading`: one snapshot of running containers, per-OS `read()`
-//! - `linux`: cgroup scan; `macos`: Docker API list + stats
+//! - `linux`: cgroup scan; `macos`: Docker API list + stats; `freebsd`: jails
+//!   and the process table
 //! - `cgroup`: pure cgroup parsers
 //! - `conmon`: Podman container names from `conmon` command lines
 //! - `cpu`: CPU % between two readings
@@ -17,6 +19,8 @@ mod cgroup;
 #[cfg(any(target_os = "linux", test))]
 mod conmon;
 mod cpu;
+#[cfg(target_os = "freebsd")]
+mod freebsd;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
