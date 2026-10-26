@@ -4,9 +4,11 @@
 //!
 //! - `run`: the collector task, one per mount
 //! - `blocks`: block counters and `df`'s percentage
-//! - `linux`, `macos`: per-OS `read()`
+//! - `linux`, `macos`, `freebsd`: per-OS `read()`
 
 mod blocks;
+#[cfg(target_os = "freebsd")]
+mod freebsd;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]

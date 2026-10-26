@@ -8,6 +8,8 @@ use crate::config::Mount;
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::store;
 
+#[cfg(target_os = "freebsd")]
+use super::freebsd::read;
 #[cfg(target_os = "linux")]
 use super::linux::read;
 #[cfg(target_os = "macos")]
