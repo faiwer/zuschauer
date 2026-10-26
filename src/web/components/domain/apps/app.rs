@@ -4,7 +4,9 @@ use crate::config::{App, CertificatesConfig, Config};
 use crate::model::EntityId;
 use crate::store::store;
 
-use super::super::super::ui::{Icon, Level, hint_id, mib, render_hint, render_panel, tinted_icon};
+use super::super::super::ui::{
+    Icon, Level, Tone, hint_id, mib, render_empty, render_hint, render_panel, tinted_icon,
+};
 use super::super::containers::{ContainerRow, container_row};
 use super::certificates::{CertificateRow, certificate_row};
 use super::checks::{CheckRow, check_row};
@@ -63,18 +65,22 @@ pub fn render_apps(apps: &[AppView]) -> Markup {
         "Apps",
         "apps",
         html! {
-            table {
-                thead {
-                    tr {
-                        th colspan="2" { "Name" }
-                        th.app-narrow { "Memory" }
-                        th.app-narrow { "CPU" }
-                        th.app-narrow {}
+            @if apps.is_empty() {
+                (render_empty(Tone::Neutral(Icon::App), "No apps configured", "Set up apps in the configuration"))
+            } @else {
+                table {
+                    thead {
+                        tr {
+                            th colspan="2" { "Name" }
+                            th.app-narrow { "Memory" }
+                            th.app-narrow { "CPU" }
+                            th.app-narrow {}
+                        }
                     }
-                }
-                tbody {
-                    @for app in apps {
-                        (render_app_row(app))
+                    tbody {
+                        @for app in apps {
+                            (render_app_row(app))
+                        }
                     }
                 }
             }
