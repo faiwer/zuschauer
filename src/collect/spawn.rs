@@ -1,6 +1,6 @@
 use crate::config::Config;
 
-use super::apps::{certificate, health, services};
+use super::apps::{certificate, commands, health, services};
 use super::{docker, host};
 
 /// Which collectors to start.
@@ -11,6 +11,7 @@ pub struct Parts {
     pub checks: bool,
     pub certificates: bool,
     pub services: bool,
+    pub commands: bool,
 }
 
 impl Parts {
@@ -20,6 +21,7 @@ impl Parts {
         checks: true,
         certificates: true,
         services: true,
+        commands: true,
     };
     pub const NONE: Self = Self {
         host: false,
@@ -27,6 +29,7 @@ impl Parts {
         checks: false,
         certificates: false,
         services: false,
+        commands: false,
     };
 }
 
@@ -48,6 +51,11 @@ pub fn spawn(config: &'static Config, parts: Parts) {
         if parts.certificates {
             for watched in &app.certificates {
                 tokio::spawn(certificate::run(app, watched, &config.certificates));
+            }
+        }
+        if parts.commands {
+            for command in &app.commands {
+                tokio::spawn(commands::run(app, command));
             }
         }
     }
