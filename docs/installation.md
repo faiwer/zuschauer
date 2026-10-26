@@ -16,7 +16,7 @@ to it and run it as a service.
 
 ## Requirements
 
-- **To build:** Rust 1.88 or newer, via [rustup](https://rustup.rs).
+- **To build:** Rust 1.89 or newer, via [rustup](https://rustup.rs).
 - **To run:** Linux or macOS. Nothing else: no runtime, no database, no shared
   libraries beyond the system's own (none at all with a musl build).
 

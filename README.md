@@ -32,7 +32,7 @@ when something goes wrong.
 
 ## Quick start
 
-Build it (Rust 1.88 or newer):
+Build it (Rust 1.89 or newer):
 
 ```sh
 cargo build --release
