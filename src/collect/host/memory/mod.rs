@@ -3,8 +3,10 @@
 //!
 //! - `run`: the collector task
 //! - `usage`: used/total bytes and the percentage
-//! - `linux`, `macos`: per-OS `read()`
+//! - `linux`, `macos`, `freebsd`: per-OS `read()`
 
+#[cfg(any(target_os = "freebsd", test))]
+mod freebsd;
 #[cfg(any(target_os = "linux", test))]
 mod linux;
 #[cfg(target_os = "macos")]
