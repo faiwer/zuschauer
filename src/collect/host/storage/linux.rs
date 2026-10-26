@@ -15,6 +15,8 @@ pub fn read(path: &Path) -> io::Result<Blocks> {
     if unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) } != 0 {
         return Err(io::Error::last_os_error());
     }
+    // The fields are `u32` on 32-bit targets.
+    #[allow(clippy::unnecessary_cast)]
     Ok(Blocks {
         block_size: stat.f_frsize as u64,
         total: stat.f_blocks as u64,

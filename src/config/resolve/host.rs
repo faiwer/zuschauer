@@ -72,12 +72,9 @@ fn metric(
 
 fn sensor(id: String, raw: RawSensor, errors: &mut Vec<String>) -> Sensor {
     let at = format!("host.temperature.\"{id}\"");
-    if !id
-        .split_once('/')
-        .is_some_and(|(driver, label)| !driver.is_empty() && !label.is_empty())
-    {
+    if !is_sensor_id(&id) {
         errors.push(format!(
-            "{at}: expected \"driver/label\" as `zuschauer --sensors` lists it"
+            "{at}: expected {SENSOR_ID} as `zuschauer --sensors` lists it"
         ));
     }
     if raw.name.as_deref().is_some_and(str::is_empty) {
@@ -95,6 +92,22 @@ fn sensor(id: String, raw: RawSensor, errors: &mut Vec<String>) -> Sensor {
         every,
         alert,
     }
+}
+
+#[cfg(not(target_os = "freebsd"))]
+const SENSOR_ID: &str = "\"driver/label\"";
+#[cfg(target_os = "freebsd")]
+const SENSOR_ID: &str = "a sysctl name like \"dev.cpu.0.temperature\"";
+
+#[cfg(not(target_os = "freebsd"))]
+fn is_sensor_id(id: &str) -> bool {
+    id.split_once('/')
+        .is_some_and(|(driver, label)| !driver.is_empty() && !label.is_empty())
+}
+
+#[cfg(target_os = "freebsd")]
+fn is_sensor_id(id: &str) -> bool {
+    id.contains('.') && id.split('.').all(|part| !part.is_empty())
 }
 
 #[cfg(test)]
@@ -142,6 +155,17 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "freebsd")]
+    fn checks_sysctl_sensor_ids() {
+        assert!(is_sensor_id("dev.cpu.0.temperature"));
+        assert!(is_sensor_id("hw.acpi.thermal.tz0.temperature"));
+        assert!(!is_sensor_id("temperature"));
+        assert!(!is_sensor_id("dev..temperature"));
+        assert!(!is_sensor_id("chip/temp1"));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "freebsd"))]
     fn checks_sensors() {
         let config = resolve(parse(
             r#"{

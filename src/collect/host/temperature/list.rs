@@ -1,12 +1,14 @@
-use std::path::Path;
 use std::process::ExitCode;
 
+#[cfg(target_os = "freebsd")]
+use super::freebsd::{ROOT, discover, read};
+#[cfg(not(target_os = "freebsd"))]
 use super::hwmon::{ROOT, discover, read};
 
 /// Prints every sensor with its current reading, quoted the way the config's
 /// `host.temperature` keys are written.
 pub fn list() -> ExitCode {
-    let found = match discover(Path::new(ROOT)) {
+    let found = match discover() {
         Ok(found) => found,
         Err(e) => {
             eprintln!("{ROOT}: {e}");

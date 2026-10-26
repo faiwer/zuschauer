@@ -17,8 +17,12 @@ pub(super) struct Found {
     pub path: PathBuf,
 }
 
+pub(super) fn discover() -> io::Result<Vec<Found>> {
+    discover_in(Path::new(ROOT))
+}
+
 /// Sorted by ID. A missing `root` means no sensors.
-pub(super) fn discover(root: &Path) -> io::Result<Vec<Found>> {
+fn discover_in(root: &Path) -> io::Result<Vec<Found>> {
     let entries = match fs::read_dir(root) {
         Ok(entries) => entries,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -109,7 +113,11 @@ mod tests {
                 ("hwmon2/temp1_input", "1000\n"),
             ],
         );
-        let ids: Vec<_> = discover(&root).unwrap().into_iter().map(|f| f.id).collect();
+        let ids: Vec<_> = discover_in(&root)
+            .unwrap()
+            .into_iter()
+            .map(|f| f.id)
+            .collect();
         assert_eq!(ids, ["chip/Sensor A/B", "chip/temp2"]);
         fs::remove_dir_all(&root).unwrap();
     }
@@ -117,7 +125,7 @@ mod tests {
     #[test]
     fn missing_root_means_no_sensors() {
         let root = std::env::temp_dir().join("zuschauer-hwmon-does-not-exist");
-        assert_eq!(discover(&root).unwrap(), []);
+        assert_eq!(discover_in(&root).unwrap(), []);
     }
 
     #[test]

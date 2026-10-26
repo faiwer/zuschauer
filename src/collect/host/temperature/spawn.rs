@@ -1,9 +1,10 @@
-use std::path::Path;
-
 use crate::config::Sensor;
 use crate::model::EntityId;
 use crate::store::store;
 
+#[cfg(target_os = "freebsd")]
+use super::freebsd::{ROOT, discover};
+#[cfg(not(target_os = "freebsd"))]
 use super::hwmon::{ROOT, discover};
 use super::run::run;
 
@@ -11,7 +12,7 @@ pub fn spawn(sensors: &'static [Sensor]) {
     if sensors.is_empty() {
         return;
     }
-    let found = discover(Path::new(ROOT)).unwrap_or_else(|e| {
+    let found = discover().unwrap_or_else(|e| {
         eprintln!("temperature: can't list sensors in {ROOT}: {e}");
         Vec::new()
     });

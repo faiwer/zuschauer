@@ -1,5 +1,4 @@
 use std::io;
-use std::path::PathBuf;
 
 use tokio::task::spawn_blocking;
 use tokio::time::{MissedTickBehavior, interval};
@@ -9,9 +8,12 @@ use crate::config::Sensor;
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::store;
 
-use super::hwmon::read;
+#[cfg(target_os = "freebsd")]
+use super::freebsd::{Sysctl as Location, read};
+#[cfg(not(target_os = "freebsd"))]
+use {super::hwmon::read, std::path::PathBuf as Location};
 
-pub async fn run(sensor: &'static Sensor, path: PathBuf) {
+pub async fn run(sensor: &'static Sensor, path: Location) {
     let entity = EntityId::Sensor(sensor.id.clone());
     let mut ticker = interval(sensor.every);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
