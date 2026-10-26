@@ -3,8 +3,10 @@
 //!
 //! - `run`: the collector task
 //! - `ticks`: cumulative tick counters and the busy share between two readings
-//! - `linux`, `macos`: per-OS `read()`
+//! - `linux`, `macos`, `freebsd`: per-OS `read()`
 
+#[cfg(target_os = "freebsd")]
+mod freebsd;
 #[cfg(any(target_os = "linux", test))]
 mod linux;
 #[cfg(target_os = "macos")]

@@ -7,14 +7,16 @@ use crate::config::Metric;
 use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::store;
 
+#[cfg(target_os = "freebsd")]
+use super::freebsd::read;
 #[cfg(target_os = "linux")]
 use super::linux::read;
 #[cfg(target_os = "macos")]
 use super::macos::read;
 use super::ticks::usage;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
-compile_error!("CPU collector supports only Linux and macOS");
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "freebsd")))]
+compile_error!("CPU collector supports only Linux, macOS and FreeBSD");
 
 /// The first value is averaged over a shorter window so it shows up right
 /// after start instead of one full `every` later.
