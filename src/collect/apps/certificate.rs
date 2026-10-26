@@ -11,7 +11,7 @@ use crate::store::store;
 use super::expiry::not_after;
 use super::outcome::record;
 
-const TIMEOUT: Duration = Duration::from_secs(10);
+pub const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub async fn run(
     app: &'static App,

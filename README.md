@@ -87,6 +87,8 @@ To keep it running in the background, see [installation](docs/installation.md).
 ```text
 zuschauer [CONFIG]           run, with CONFIG defaulting to ./config.jsonc
 zuschauer --check [CONFIG]   validate the config, print it with defaults applied, and exit
+zuschauer --state [CONFIG]   read everything the config watches once, print it, and exit
+  --only PARTS               with --state, only some of: host, containers, checks, certificates, services
 zuschauer --sensors          list temperature sensors with their current readings, and exit
 ```
 
