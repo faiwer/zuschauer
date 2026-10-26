@@ -29,7 +29,7 @@ when something goes wrong.
 | Docker | Every container's status, CPU and memory; Podman works too, and so do jails on FreeBSD | [apps](docs/apps.md) |
 | Apps | A named group of containers, HTTP health checks, TLS certificates, systemd, launchd or rc.d services, commands zuschauer runs and scheduled jobs | [apps](docs/apps.md) |
 | Alerts | "Above X for Y" thresholds, severities, alerts that wait for others | [alerts](docs/alerts.md) |
-| Notifications | [ntfy](https://ntfy.sh) | [notifiers](docs/notifiers.md) |
+| Notifications | [ntfy](https://ntfy.sh), webhooks | [notifiers](docs/notifiers.md) |
 | Heartbeat | A regular request to a service like healthchecks.io, so you learn when the machine itself is down | [heartbeat](docs/heartbeat.md) |
 
 ## Quick start
@@ -106,7 +106,7 @@ zuschauer --sensors          list temperature sensors with their current reading
   commands and jobs.
 - [Alerts](docs/alerts.md): thresholds, severities, dependencies, firing and
   resolving.
-- [Notifiers](docs/notifiers.md): sending alerts to ntfy.
+- [Notifiers](docs/notifiers.md): sending alerts to ntfy or a webhook.
 - [Heartbeat](docs/heartbeat.md): letting an outside service know zuschauer is
   alive.
 - [Dashboard](docs/dashboard.md): the dashboard, the details dialogs, themes.

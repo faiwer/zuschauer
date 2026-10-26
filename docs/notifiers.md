@@ -1,15 +1,19 @@
 # Notifiers
 
-Notifiers deliver [alerts](alerts.md) to you. Zuschauer currently supports
-[ntfy](https://ntfy.sh): a simple publish-subscribe notification service with
-apps for Android, iOS and the desktop, which you can use for free at ntfy.sh or
-host yourself.
+Notifiers deliver [alerts](alerts.md) to you. Zuschauer supports two kinds:
+
+- [ntfy](https://ntfy.sh): a simple publish-subscribe notification service with
+  apps for Android, iOS and the desktop, which you can use for free at ntfy.sh
+  or host yourself.
+- [Webhooks](#webhooks): an HTTP request to a URL of your choosing, for chat
+  services, your own scripts, or anything else that takes one.
 
 - [Setting up ntfy](#setting-up-ntfy)
 - [Keys](#keys)
 - [Choosing a topic](#choosing-a-topic)
 - [A self-hosted server](#a-self-hosted-server)
 - [How notifications look](#how-notifications-look)
+- [Webhooks](#webhooks)
 - [Several notifiers](#several-notifiers)
 - [Delivery](#delivery)
 
@@ -112,10 +116,116 @@ The alert's [severity](alerts.md#severity) sets ntfy's priority and the icon:
 The ntfy app lets you change what each priority does, for example to let
 critical notifications through Do Not Disturb.
 
+## Webhooks
+
+A webhook sends each alert change, firing or resolved, as an HTTP request:
+
+```jsonc
+"notifiers": {
+  "hook": {
+    "type": "webhook",
+    "url": "https://hooks.example.com/zuschauer",
+    "headers": ["Authorization: Bearer <token>"],
+    "hmac": { "secret": "<a long random string>" }
+  }
+}
+```
+
+| Key | Default | |
+| --- | --- | --- |
+| `type` | required | `"webhook"`. |
+| `url` | required | Where to send it, `http://` or `https://`. Can include `%{context}`, as in the [heartbeat](heartbeat.md#templates). |
+| `method` | `"POST"` | `"POST"`, `"PUT"` or `"PATCH"`. |
+| `headers` | none | `"Name: value"` strings. Can include `%{context}`. |
+| `body` | the JSON below | A [template](#a-body-of-your-own) for the body. |
+| `hmac.secret` | none | Signs the body, see [signatures](#signatures). |
+| `hmac.header` | `"X-Signature"` | The header the signature goes in. |
+
+`Content-Type` is `application/json` unless `headers` sets it. `Host`,
+`Content-Length`, `Connection` and `Transfer-Encoding` are zuschauer's own and
+can't be set.
+
+Without `body`, zuschauer sends:
+
+```json
+{
+  "context": "my-server",
+  "alert": "blog-db",
+  "status": "firing",
+  "severity": "critical",
+  "title": "Blog container blog-db",
+  "message": "not running, for 1m"
+}
+```
+
+- `alert` is the alert's [ID](alerts.md#ids-and-dependson), the same in the
+  firing and the resolved request.
+- `status` is `"firing"` or `"resolved"`.
+- `severity` is `"critical"`, `"warning"` or `"info"`, and `null` when
+  resolved.
+- `title` and `message` are what ntfy would show, without the context.
+
+### A body of your own
+
+Most chat services want their own JSON. `body` is a template with these
+placeholders, each also as `%{name|json}`, escaped for inside a JSON string,
+and `%{name|url}`, percent-encoded:
+
+| Placeholder | Becomes |
+| --- | --- |
+| `%{context}` | the [context](configuration.md#top-level-settings) |
+| `%{alert}` | the alert's ID |
+| `%{status}` | `firing` or `resolved` |
+| `%{severity}` | `critical`, `warning` or `info`; empty when resolved |
+| `%{title}` | the notification's title |
+| `%{message}` | the notification's text |
+
+For example, a Slack or Mattermost incoming webhook:
+
+```jsonc
+"notifiers": {
+  "chat": {
+    "type": "webhook",
+    "url": "https://hooks.slack.com/services/<your-webhook-path>",
+    "body": "{ \"text\": \"[%{context|json}] %{title|json}: %{message|json}\" }"
+  }
+}
+```
+
+Use `|json` for anything inside a JSON string: a title with a `"` in it would
+break the JSON otherwise.
+
+### Signatures
+
+With `hmac`, zuschauer signs every body with HMAC-SHA256 and the secret, and
+sends the signature in a header:
+
+```text
+X-Signature: sha256=5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
+```
+
+The receiver computes the same from the body it got and its copy of the
+secret, and drops the request if they differ. That proves the request came
+from someone who knows the secret and that the body wasn't changed on the way.
+It's the same format GitHub uses, so code that checks GitHub's
+`X-Hub-Signature-256` works with `"header": "X-Hub-Signature-256"`. In Python:
+
+```python
+import hmac, hashlib
+
+def is_genuine(body: bytes, header: str, secret: bytes) -> bool:
+    expected = "sha256=" + hmac.new(secret, body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, header)
+```
+
+Sign the body exactly as received, before parsing it. Like a token, the secret
+makes the config file hold a secret: keep it readable only by zuschauer, see
+[installation](installation.md).
+
 ## Several notifiers
 
 Every notification goes to every notifier. To get alerts on two topics, say
-yours and a teammate's, or on two servers, add one notifier for each:
+yours and a teammate's, or on ntfy and a webhook, add one notifier for each:
 
 ```jsonc
 "notifiers": {
