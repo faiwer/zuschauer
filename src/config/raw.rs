@@ -45,6 +45,7 @@ pub struct RawHeartbeat {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RawNotifier {
     Ntfy(RawNtfy),
+    Webhook(RawWebhook),
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,6 +55,27 @@ pub struct RawNtfy {
     pub token: Option<String>,
     /// The ntfy server.
     pub address: Option<Url>,
+}
+
+/// An HTTP request per alert change. `url` and `headers` are templates with
+/// `%{context}`, `body` one with the message's variables too.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawWebhook {
+    pub url: String,
+    pub method: Option<String>,
+    /// `name: value`.
+    pub headers: Option<Vec<String>>,
+    pub body: Option<String>,
+    pub hmac: Option<RawHmac>,
+}
+
+/// Signs the body with HMAC-SHA256.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RawHmac {
+    pub secret: String,
+    pub header: Option<String>,
 }
 
 /// Shared by all apps' `certificates`.

@@ -48,6 +48,7 @@ pub struct Notifier {
 #[derive(Debug)]
 pub enum NotifierKind {
     Ntfy(Ntfy),
+    Webhook(Webhook),
 }
 
 #[derive(Debug)]
@@ -57,6 +58,28 @@ pub struct Ntfy {
     pub address: Option<Url>,
     pub topic: String,
     pub token: Option<String>,
+}
+
+/// What a webhook's `body` can use, besides the filters.
+pub const WEBHOOK_VARIABLES: [&str; 6] =
+    ["context", "alert", "status", "severity", "title", "message"];
+
+#[derive(Debug)]
+pub struct Webhook {
+    pub url: Url,
+    /// Upper case.
+    pub method: String,
+    pub headers: Vec<(String, String)>,
+    /// A template with `WEBHOOK_VARIABLES`. `None`: the default JSON.
+    pub body: Option<String>,
+    pub hmac: Option<Hmac>,
+}
+
+/// Signs a webhook's body: `{header}: sha256=<hex HMAC-SHA256>`.
+#[derive(Debug)]
+pub struct Hmac {
+    pub secret: String,
+    pub header: String,
 }
 
 #[derive(Debug)]
@@ -389,6 +412,29 @@ impl fmt::Display for NotifierKind {
                 }
                 if ntfy.token.is_some() {
                     write!(f, ", with a token")?;
+                }
+                Ok(())
+            }
+            // Without the URL's path and query or the header values, like the
+            // heartbeat.
+            Self::Webhook(webhook) => {
+                let url = webhook.url.to_string();
+                let origin = &url[..url.len() - webhook.url.target.len()];
+                write!(f, "webhook {} {origin}/…", webhook.method)?;
+                if !webhook.headers.is_empty() {
+                    let names: Vec<&str> = webhook
+                        .headers
+                        .iter()
+                        .map(|(name, _)| name.as_str())
+                        .collect();
+                    write!(f, ", headers {}", names.join(", "))?;
+                }
+                match &webhook.body {
+                    Some(_) => write!(f, ", a custom body")?,
+                    None => write!(f, ", the default JSON body")?,
+                }
+                if let Some(hmac) = &webhook.hmac {
+                    write!(f, ", signed in {}", hmac.header)?;
                 }
                 Ok(())
             }

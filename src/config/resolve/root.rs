@@ -28,11 +28,11 @@ pub fn resolve(raw: RawConfig) -> Result<Config, Vec<String>> {
         &services,
         &mut errors,
     );
-    let notifiers = notifiers(raw.notifiers.unwrap_or_default(), &mut errors);
     if raw.context.as_deref().is_some_and(str::is_empty) {
         errors.push("context: can't be empty, leave it out instead".to_owned());
     }
     let context = raw.context.unwrap_or_else(hostname);
+    let notifiers = notifiers(raw.notifiers.unwrap_or_default(), &context, &mut errors);
     let heartbeat = raw
         .heartbeat
         .and_then(|raw_heartbeat| heartbeat(raw_heartbeat, &context, &mut errors));

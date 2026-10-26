@@ -18,6 +18,7 @@ pub(super) fn fired(
         format!("{detail}, for {}", span(lasted))
     };
     Message {
+        alert: alert.id.clone(),
         title: alert.label.clone(),
         body,
         severity: Some(severity),
@@ -26,6 +27,7 @@ pub(super) fn fired(
 
 pub(super) fn resolved(alert: &Alert, since: Timestamp, at: Timestamp) -> Message {
     Message {
+        alert: alert.id.clone(),
         title: format!("{} resolved", alert.label),
         body: format!("after {}", span(at.saturating_sub(since))),
         severity: None,

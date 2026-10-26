@@ -3,7 +3,7 @@ use std::fmt::Write;
 /// Replaces `%{name}` with a variable's value as it is, `%{name|json}` with
 /// it escaped for inside a JSON string, and `%{name|url}` with it
 /// percent-encoded. Anything else is copied, so `%20` stays `%20`.
-pub(super) fn render(text: &str, vars: &[(&str, &str)]) -> Result<String, String> {
+pub(crate) fn render(text: &str, vars: &[(&str, &str)]) -> Result<String, String> {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(start) = rest.find("%{") {

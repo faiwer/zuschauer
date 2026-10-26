@@ -1,14 +1,12 @@
 use crate::config::raw::RawHeartbeat;
 use crate::config::resolved::Heartbeat;
-use crate::http::{RESERVED_HEADERS, Url};
+use crate::http::Url;
 
 use super::every::{DEFAULT_EVERY, every};
+use super::headers::headers;
 use super::template::render;
 
 const METHODS: [&str; 5] = ["GET", "HEAD", "POST", "PUT", "PATCH"];
-
-/// Characters allowed in a header name, besides letters and digits.
-const NAME_SYMBOLS: &str = "!#$%&'*+-.^_`|~";
 
 /// `context` is the only template variable.
 pub(super) fn heartbeat(
@@ -29,19 +27,7 @@ pub(super) fn heartbeat(
         ));
     }
 
-    let headers = raw
-        .headers
-        .unwrap_or_default()
-        .iter()
-        .enumerate()
-        .filter_map(|(i, raw_header)| {
-            let at = format!("heartbeat.headers[{i}]");
-            render(raw_header, &vars)
-                .and_then(|text| header(&text))
-                .map_err(|e| errors.push(format!("{at}: {e}")))
-                .ok()
-        })
-        .collect();
+    let headers = headers("heartbeat", raw.headers.unwrap_or_default(), &vars, errors);
 
     let body = raw.body.and_then(|body| {
         render(&body, &vars)
@@ -65,33 +51,6 @@ pub(super) fn heartbeat(
         body,
         every,
     })
-}
-
-/// `name: value`.
-fn header(text: &str) -> Result<(String, String), String> {
-    let (name, value) = text
-        .split_once(':')
-        .ok_or_else(|| format!("\"{text}\" isn't \"name: value\""))?;
-    let (name, value) = (name.trim(), value.trim());
-    let valid_name = !name.is_empty()
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || NAME_SYMBOLS.contains(c));
-    if !valid_name {
-        return Err(format!("\"{name}\" isn't a valid header name"));
-    }
-    if RESERVED_HEADERS
-        .iter()
-        .any(|r| r.eq_ignore_ascii_case(name))
-    {
-        return Err(format!("{name} is set by zuschauer"));
-    }
-    if value.chars().any(|c| c.is_control() && c != '\t') {
-        return Err(format!(
-            "{name}: the value can't have line breaks or control characters"
-        ));
-    }
-    Ok((name.to_owned(), value.to_owned()))
 }
 
 #[cfg(test)]

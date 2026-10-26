@@ -11,13 +11,15 @@
 //! - `alerts`: alert IDs, labels and dependencies
 //! - `notifiers`: notifiers
 //! - `heartbeat`: the request that tells an outside service zuschauer runs
-//! - `template`: `%{variable}` placeholders in the heartbeat
+//! - `headers`: `name: value` headers, for the heartbeat and webhooks
+//! - `template`: `%{variable}` placeholders in the heartbeat and webhooks
 //! - `every`: the `every` interval every section has
 
 mod alerts;
 mod apps;
 mod commands;
 mod every;
+mod headers;
 mod heartbeat;
 mod host;
 mod jobs;
@@ -27,3 +29,4 @@ mod services;
 mod template;
 
 pub use root::resolve;
+pub(crate) use template::render as render_template;

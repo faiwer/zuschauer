@@ -16,10 +16,11 @@ mod resolved;
 mod types;
 
 pub use load::load;
+pub(crate) use resolve::render_template;
 pub use resolved::{
     Alert, App, AppCertificate, AppCommand, AppJob, AppService, CertificatesConfig, Config,
     DockerConfig, HealthCheck, Heartbeat, HostConfig, Metric, Mount, Notifier, NotifierKind, Ntfy,
-    OutputSlice, RestartLimit, Sensor, ServicesConfig,
+    OutputSlice, RestartLimit, Sensor, ServicesConfig, WEBHOOK_VARIABLES, Webhook,
 };
 pub use types::{Dur, OutputFrom, Severity};
 #[expect(unused_imports, reason = "public API, not consumed yet")]
