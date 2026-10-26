@@ -26,7 +26,8 @@ impl Verdicts {
 }
 
 pub struct AppSummary {
-    /// Checks, containers, services and jobs; certificates have their own.
+    /// Checks, containers, services, commands and jobs; certificates have
+    /// their own.
     pub health: Verdicts,
     /// `None` without a running container that reported it.
     pub cpu: Option<f32>,
@@ -69,6 +70,15 @@ fn health(app: &AppView) -> Verdicts {
         match service.status {
             Some(Status::Down { .. }) => {
                 health.add(Level::Problem, Some(format!("{} down", service.name)))
+            }
+            Some(_) => health.add(Level::Ok, None),
+            None => {}
+        }
+    }
+    for command in &app.commands {
+        match command.status {
+            Some(Status::Down { .. }) => {
+                health.add(Level::Problem, Some(format!("{} failed", command.name)))
             }
             Some(_) => health.add(Level::Ok, None),
             None => {}

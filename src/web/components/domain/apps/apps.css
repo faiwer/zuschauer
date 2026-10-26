@@ -2,3 +2,9 @@
   width: 1%;
   white-space: nowrap;
 }
+
+/* A command's output keeps its lines. */
+.command-output {
+  display: block;
+  white-space: pre-line;
+}

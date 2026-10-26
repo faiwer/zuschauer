@@ -10,6 +10,7 @@ use super::super::super::ui::{
 use super::super::containers::{ContainerRow, container_row};
 use super::certificates::{CertificateRow, certificate_row};
 use super::checks::{CheckRow, check_row};
+use super::commands::{CommandRow, command_row};
 use super::jobs::{JobRow, job_row};
 use super::services::{ServiceRow, service_row};
 use super::summary::{Verdicts, counted_containers, summarize};
@@ -20,6 +21,7 @@ pub struct AppView {
     pub(super) containers: Vec<ContainerRow>,
     pub(super) certificates: Vec<CertificateRow>,
     pub(super) services: Vec<ServiceRow>,
+    pub(super) commands: Vec<CommandRow>,
     pub(super) jobs: Vec<JobRow>,
 }
 
@@ -55,6 +57,11 @@ fn app_view(app: &'static App, certificates: &CertificatesConfig) -> AppView {
             .iter()
             .map(|service| service_row(&store, app, service))
             .collect(),
+        commands: app
+            .commands
+            .iter()
+            .map(|command| command_row(&store, app, command))
+            .collect(),
         jobs: app.jobs.iter().map(|job| job_row(app, job)).collect(),
     }
 }
@@ -88,7 +95,7 @@ pub fn render_apps(apps: &[AppView]) -> Markup {
     )
 }
 
-/// The worst of an app's checks, containers, services and jobs.
+/// The worst of an app's checks, containers, services, commands and jobs.
 pub fn app_level(app: &AppView) -> Level {
     summarize(app).health.level
 }

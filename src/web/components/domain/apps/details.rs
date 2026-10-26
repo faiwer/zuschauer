@@ -6,6 +6,7 @@ use super::super::containers::render_container_item;
 use super::app::{AppView, app_views};
 use super::certificates::render_certificate_item;
 use super::checks::render_check_item;
+use super::commands::render_command_item;
 use super::jobs::render_job_item;
 use super::services::render_service_item;
 
@@ -39,6 +40,12 @@ fn render_details(app: &AppView) -> Markup {
             section {
                 h1 { "Services" }
                 ol { @for row in &app.services { (render_service_item(row)) } }
+            }
+        }
+        @if !app.commands.is_empty() {
+            section {
+                h1 { "Commands" }
+                ol { @for row in &app.commands { (render_command_item(row)) } }
             }
         }
         @if !app.jobs.is_empty() {
