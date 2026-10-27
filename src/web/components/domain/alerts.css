@@ -1,7 +1,8 @@
 /* Tables have no `fit-content` column width: 1% shrinks the column to its
    content, and nowrap keeps that content on one line. */
 .alert-icon,
-.alert-age {
+.alert-age,
+.alert-time {
   width: 1%;
   white-space: nowrap;
 }

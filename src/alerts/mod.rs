@@ -3,7 +3,8 @@
 //! notification.
 //!
 //! - `engine`: the per-alert state machine
-//! - `global`: the process-wide engine, `observe()` and `firing()`
+//! - `global`: the process-wide engine, `observe()`, `firing()` and the
+//!   latest `resolved()`
 //! - `message`: a change's notification text
 
 mod engine;
@@ -11,4 +12,4 @@ mod global;
 mod message;
 
 pub use engine::Observation;
-pub use global::{Firing, firing, observe};
+pub use global::{Firing, firing, observe, resolved};

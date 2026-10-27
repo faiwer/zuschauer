@@ -11,7 +11,7 @@ mod header;
 mod heartbeat;
 mod host;
 
-pub use alerts::render_alerts;
+pub use alerts::{render_alerts, render_resolved_dialog};
 pub use apps::{app_views, render_app_dialog, render_apps};
 pub use containers::{container_rows, render_container_dialog, render_containers};
 pub use header::{header_view, render_header};

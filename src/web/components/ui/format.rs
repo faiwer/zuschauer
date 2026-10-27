@@ -32,9 +32,26 @@ const MONTHS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-/// Local time, like `Apr 28, 2025, 15:24`.
+/// Local time: `today 15:24`, `yesterday 15:24`, else `Apr 28, 2025, 15:24`.
 pub fn date_time(at: Timestamp) -> String {
     let c = Civil::local(at);
+    let day = |c: Civil| (c.year, c.month, c.day);
+    let today = Civil::local(now());
+    // A day before today's midnight, not 24h ago: days around a
+    // daylight-saving jump last 23 or 25 hours.
+    let yesterday = Civil {
+        hour: 0,
+        minute: 0,
+        ..today
+    }
+    .timestamp()
+    .map(|midnight| Civil::local(midnight.saturating_sub(1)));
+    if day(c) == day(today) {
+        return format!("today {:02}:{:02}", c.hour, c.minute);
+    }
+    if yesterday.is_some_and(|yesterday| day(c) == day(yesterday)) {
+        return format!("yesterday {:02}:{:02}", c.hour, c.minute);
+    }
     format!(
         "{} {}, {}, {:02}:{:02}",
         MONTHS[c.month as usize - 1],
@@ -67,5 +84,28 @@ pub fn span(seconds: Timestamp) -> String {
         120..7200 => format!("{}m", seconds / 60),
         7200..172_800 => format!("{}h", seconds / 3600),
         _ => format!("{}d", seconds / 86400),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn names_today_and_yesterday() {
+        let at = now();
+        assert!(date_time(at).starts_with("today "), "{}", date_time(at));
+        let today = Civil::local(at);
+        let midnight = Civil {
+            hour: 0,
+            minute: 0,
+            ..today
+        }
+        .timestamp()
+        .unwrap();
+        let before = date_time(midnight - 1);
+        assert!(before.starts_with("yesterday "), "{before}");
+        let older = date_time(midnight - 2 * 86_400);
+        assert!(older.contains(", "), "{older}");
     }
 }

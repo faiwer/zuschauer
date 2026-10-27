@@ -218,8 +218,10 @@ can't be reached, its notifications are queued and retried, in order, so a
 resolve never arrives before its alert.
 
 Firing alerts are also listed in the dashboard's Alerts panel, with their
-severity and how long they've lasted. Without notifiers, that panel and the
-log are the only places they show up, and zuschauer says so when it starts:
+severity and how long they've lasted. The clock button in its title lists the
+last 50 resolved alerts, since zuschauer started. Without notifiers, that panel
+and the log are the only places they show up, and zuschauer says so when it
+starts:
 
 ```text
 alerts: no notifiers configured, alerts only show on the page

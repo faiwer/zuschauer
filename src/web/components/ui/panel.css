@@ -52,3 +52,13 @@
   font-size: 1.2rem;
   font-weight: 500;
 }
+
+/* Its own height would make the title taller than the other panels'. */
+.panel-action {
+  display: flex;
+  margin: -0.25rem -0.25rem -0.25rem auto;
+
+  &:hover {
+    opacity: .8;
+  }
+}

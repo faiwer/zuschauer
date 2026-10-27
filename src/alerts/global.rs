@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use crate::config::{Alert, Severity};
@@ -8,9 +9,16 @@ use super::engine::{Change, Engine, Observation};
 use super::message;
 
 static ENGINE: Mutex<Engine> = Mutex::new(Engine::new());
+/// Newest first, up to `RESOLVED_KEPT`.
+static RESOLVED: Mutex<VecDeque<Resolved>> = Mutex::new(VecDeque::new());
+const RESOLVED_KEPT: usize = 50;
 
 fn engine() -> MutexGuard<'static, Engine> {
     ENGINE.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn resolved_list() -> MutexGuard<'static, VecDeque<Resolved>> {
+    RESOLVED.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// Feeds what a collector saw into `alert`, and notifies when that makes it,
@@ -34,6 +42,13 @@ pub fn observe(alert: &'static Alert, observation: Observation) {
                 severity,
             } => {
                 eprintln!("alert {}: resolved", alert.id);
+                remember(Resolved {
+                    alert,
+                    since,
+                    ended: at,
+                    detail: detail.clone(),
+                    severity,
+                });
                 message::resolved(alert, severity, detail, since, at)
             }
         };
@@ -61,4 +76,27 @@ pub fn firing() -> Vec<Firing> {
             severity: problem.severity,
         })
         .collect()
+}
+
+#[derive(Clone)]
+pub struct Resolved {
+    pub alert: &'static Alert,
+    /// When the problem started.
+    pub since: Timestamp,
+    pub ended: Timestamp,
+    /// The latest problem's.
+    pub detail: String,
+    /// The loudest announced.
+    pub severity: Severity,
+}
+
+fn remember(resolved: Resolved) {
+    let mut list = resolved_list();
+    list.push_front(resolved);
+    list.truncate(RESOLVED_KEPT);
+}
+
+/// The latest resolved alerts since start, newest first.
+pub fn resolved() -> Vec<Resolved> {
+    resolved_list().iter().cloned().collect()
 }

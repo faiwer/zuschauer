@@ -33,4 +33,4 @@ pub use hint::{hint_id, render_hint};
 pub use icon::{Icon, icon, tinted_icon};
 pub use level::Level;
 pub use logo::{LOGO_SVG, render_logo};
-pub use panel::render_panel;
+pub use panel::{render_panel, render_panel_with};
