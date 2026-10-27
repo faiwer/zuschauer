@@ -154,7 +154,11 @@ pub fn render_container_dialog(name: &str) -> Option<Markup> {
 const MIB: f32 = 1024.0 * 1024.0;
 
 /// The entity's series, oldest first, with values times `scale`.
-fn series_points(entity: Option<&Entity>, metric: MetricKind, scale: f32) -> Vec<(Timestamp, f32)> {
+pub(super) fn series_points(
+    entity: Option<&Entity>,
+    metric: MetricKind,
+    scale: f32,
+) -> Vec<(Timestamp, f32)> {
     entity
         .and_then(|e| e.series(metric))
         .map(|series| series.iter().map(|s| (s.at, s.value * scale)).collect())

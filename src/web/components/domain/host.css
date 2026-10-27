@@ -44,3 +44,8 @@
     color: var(--tint);
   }
 }
+
+/* Over `.modal-body section`'s gap: it's as specific, and comes later. */
+section.host-graph {
+  gap: 1rem;
+}

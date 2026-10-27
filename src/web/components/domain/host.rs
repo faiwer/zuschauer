@@ -5,14 +5,16 @@ use crate::model::{EntityId, MetricKind, Sample};
 use crate::store::{Entity, Store, store};
 
 use super::super::ui::{
-    Icon, Level, hint_id, icon, render_gauge, render_hint, render_panel, tinted_icon,
+    Icon, Level, date_time, hint_id, icon, render_gauge, render_graph, render_hint, render_panel,
+    tinted_icon,
 };
+use super::containers::series_points;
 
 pub struct HostView {
     cpu: HostRow,
     memory: HostRow,
-    /// The configured mounts, then the sensors.
-    readings: Vec<(Icon, HostRow)>,
+    /// The configured mounts, then the sensors, with their `data-entity`.
+    readings: Vec<(Icon, String, HostRow)>,
 }
 
 pub struct HostRow {
@@ -30,7 +32,8 @@ pub fn host_view(config: &Config) -> HostView {
         let label = mount.path.display().to_string();
         let id = EntityId::Mount(mount.path.clone());
         let row = host_row(&store, label, &id, MetricKind::Storage, "%");
-        (Icon::Storage, row.above(&mount.metric.alert))
+        let entity = format!("mount:{}", mount.path.display());
+        (Icon::Storage, entity, row.above(&mount.metric.alert))
     });
     let temperature = config.host.temperature.iter().map(|sensor| {
         let id = EntityId::Sensor(sensor.id.clone());
@@ -41,7 +44,8 @@ pub fn host_view(config: &Config) -> HostView {
             MetricKind::Temperature,
             " °C",
         );
-        (Icon::Temperature, row.above(&sensor.alert))
+        let entity = format!("sensor:{}", sensor.id);
+        (Icon::Temperature, entity, row.above(&sensor.alert))
     });
     let host = |label: &str, kind| host_row(&store, label.to_owned(), &EntityId::Host, kind, "%");
     HostView {
@@ -106,8 +110,8 @@ pub fn render_host(view: &HostView) -> Markup {
             }
             @if !view.readings.is_empty() {
                 table.host-readings {
-                    @for (reading_icon, row) in &view.readings {
-                        (render_reading_row(*reading_icon, row))
+                    @for (reading_icon, entity, row) in &view.readings {
+                        (render_reading_row(*reading_icon, entity, row))
                     }
                 }
             }
@@ -124,11 +128,11 @@ fn render_host_gauge(row: &HostRow) -> Markup {
     )
 }
 
-fn render_reading_row(reading_icon: Icon, row: &HostRow) -> Markup {
+fn render_reading_row(reading_icon: Icon, entity: &str, row: &HostRow) -> Markup {
     let hint = row.error.as_ref().map(|error| (hint_id(), error));
     let hint_ref = hint.as_ref().map(|(id, _)| id);
     html! {
-        tr.table-row.host-reading-error[row.error.is_some()] {
+        tr.table-row.clickable.host-reading-error[row.error.is_some()] data-entity=(entity) {
             td.host-reading-icon {
                 @if row.error.is_some() {
                     (tinted_icon(reading_icon, "tint-problem", hint_ref.map(String::as_str)))
@@ -141,6 +145,59 @@ fn render_reading_row(reading_icon: Icon, row: &HostRow) -> Markup {
             }
             td.highlight.host-reading-label data-hint=[hint_ref] { (row.label) }
             td.host-reading-value.(row.level().text_class()) { (row.value()) }
+        }
+    }
+}
+
+/// The dialog's content for the configured mount at `path`. `None`: no such
+/// mount.
+pub fn render_mount_dialog(config: &Config, path: &str) -> Option<Markup> {
+    let mount = config
+        .host
+        .storage
+        .iter()
+        .find(|mount| mount.path.as_os_str() == path)?;
+    let id = EntityId::Mount(mount.path.clone());
+    Some(render_reading_dialog(path, &id, MetricKind::Storage, "%"))
+}
+
+/// The dialog's content for the configured sensor `driver/label`. `None`: no
+/// such sensor.
+pub fn render_sensor_dialog(config: &Config, id: &str) -> Option<Markup> {
+    let sensor = config
+        .host
+        .temperature
+        .iter()
+        .find(|sensor| sensor.id == id)?;
+    let id = EntityId::Sensor(sensor.id.clone());
+    Some(render_reading_dialog(
+        &sensor.name,
+        &id,
+        MetricKind::Temperature,
+        " °C",
+    ))
+}
+
+fn render_reading_dialog(label: &str, id: &EntityId, kind: MetricKind, unit: &str) -> Markup {
+    let store = store();
+    let entity = store.entity(id);
+    let latest = entity.and_then(|e| e.series(kind)).and_then(|s| s.latest());
+    let points = series_points(entity, kind, 1.0);
+    html! {
+        section.host-graph {
+            h1 { (label) }
+            @let error = entity.and_then(Entity::error);
+            @if let Some(error) = error {
+                p.(Level::Problem.text_class()) { (error) }
+            }
+            @if let Some(sample) = latest {
+                p { "Value: " (format!("{:.1}{unit}", sample.value)) ", read at " (date_time(sample.at)) }
+            } @else if error.is_none() {
+                p { "Not read yet" }
+            }
+            @if !points.is_empty() {
+                (render_graph(&points, unit))
+            }
         }
     }
 }

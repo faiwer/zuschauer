@@ -15,4 +15,4 @@ pub use alerts::render_alerts;
 pub use apps::{app_views, render_app_dialog, render_apps};
 pub use containers::{container_rows, render_container_dialog, render_containers};
 pub use header::{header_view, render_header};
-pub use host::{host_view, render_host};
+pub use host::{host_view, render_host, render_mount_dialog, render_sensor_dialog};

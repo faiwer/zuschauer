@@ -2,7 +2,7 @@
 //!
 //! - `index`: the dashboard
 //! - `favicon`: the logo, for the browser tab
-//! - `entity`: an app's or container's details, for the dialog
+//! - `entity`: an app's, container's, mount's or sensor's details, for the dialog
 
 mod entity;
 mod favicon;
