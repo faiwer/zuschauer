@@ -11,6 +11,6 @@ mod ui;
 pub use domain::{
     app_views, container_rows, header_view, host_view, render_alerts, render_app_dialog,
     render_apps, render_container_dialog, render_containers, render_header, render_host,
-    render_mount_dialog, render_sensor_dialog,
+    render_host_dialog, render_mount_dialog, render_sensor_dialog,
 };
 pub use ui::{LOGO_SVG, date, mib, render_frame, status_for, until};

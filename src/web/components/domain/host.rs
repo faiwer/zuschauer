@@ -105,8 +105,8 @@ pub fn render_host(view: &HostView) -> Markup {
         "host",
         html! {
             div.host-gauges {
-                (render_host_gauge(&view.cpu))
-                (render_host_gauge(&view.memory))
+                (render_host_gauge("host:cpu", &view.cpu))
+                (render_host_gauge("host:memory", &view.memory))
             }
             @if !view.readings.is_empty() {
                 table.host-readings {
@@ -119,13 +119,17 @@ pub fn render_host(view: &HostView) -> Markup {
     )
 }
 
-fn render_host_gauge(row: &HostRow) -> Markup {
-    render_gauge(
-        &row.label,
-        row.sample.map(|s| s.value),
-        &row.value(),
-        row.error.as_deref(),
-    )
+fn render_host_gauge(entity: &str, row: &HostRow) -> Markup {
+    html! {
+        div.host-gauge data-entity=(entity) {
+            (render_gauge(
+                &row.label,
+                row.sample.map(|s| s.value),
+                &row.value(),
+                row.error.as_deref(),
+            ))
+        }
+    }
 }
 
 fn render_reading_row(reading_icon: Icon, entity: &str, row: &HostRow) -> Markup {
@@ -147,6 +151,16 @@ fn render_reading_row(reading_icon: Icon, entity: &str, row: &HostRow) -> Markup
             td.host-reading-value.(row.level().text_class()) { (row.value()) }
         }
     }
+}
+
+/// The dialog's content for `cpu` or `memory`. `None`: neither.
+pub fn render_host_dialog(metric: &str) -> Option<Markup> {
+    let (label, kind) = match metric {
+        "cpu" => ("CPU", MetricKind::Cpu),
+        "memory" => ("Memory", MetricKind::Memory),
+        _ => return None,
+    };
+    Some(render_reading_dialog(label, &EntityId::Host, kind, "%"))
 }
 
 /// The dialog's content for the configured mount at `path`. `None`: no such
